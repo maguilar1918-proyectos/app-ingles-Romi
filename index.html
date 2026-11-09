@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Mi Pasaporte de Inglés</title>
+<meta name="theme-color" content="#3FA9C9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pasaporte">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar" hidden>
+    <div id="pips"></div>
+    <div id="timers">
+      <div class="bar"><i id="blockBar"></i></div>
+      <span id="clock">20:00</span>
+    </div>
+    <button class="icon-btn" id="muteBtn" aria-label="Sonido">🔊</button>
+    <button class="icon-btn" id="pauseBtn" aria-label="Pausa">⏸️</button>
+  </header>
+
+  <section id="parrotRow">
+    <div id="parrot" aria-hidden="true">🦜</div>
+    <div id="bubble" role="status" aria-live="polite"></div>
+  </section>
+
+  <main id="stage"></main>
+  <div id="overlay" hidden></div>
+  <div id="confetti" aria-hidden="true"></div>
+</div>
+<script src="js/data.js"></script>
+<script src="js/store.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
