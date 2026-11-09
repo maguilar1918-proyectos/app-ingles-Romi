@@ -84,7 +84,7 @@ const Store = (() => {
     while (S.days[k] && S.days[k].done) { n++; k--; }
     return n;
   }
-  const canStart = () => !today().done || !!S.settings.extra[dayNum()];
+  const canStart = () => TESTING_UNLIMITED || !today().done || !!S.settings.extra[dayNum()];
 
   function exportJSON() { return JSON.stringify(S); }
   function importJSON(txt) {

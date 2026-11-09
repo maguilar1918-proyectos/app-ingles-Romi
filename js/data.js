@@ -75,7 +75,10 @@ const CATEGORIES = {
   nature:   { label:"Naturaleza",        icon:"🌳" }
 };
 
-const LEVELS = ["Nueva", "Aprendiendo", "Casi", "Dominada"];
+// MODO PRUEBAS: true = se puede empezar una sesión cuantas veces se quiera. Poner en false en la versión final.
+const TESTING_UNLIMITED = true;
+
+const LEVELS =["Nueva", "Aprendiendo", "Casi", "Dominada"];
 // Días de espera tras cada recuerdo en frío exitoso (índice = paso).
 const INTERVALS = [0, 1, 2, 4, 7, 14];
 const MAX_NEW_PER_SESSION = 6;   // valor por defecto; se cambia en el panel de padres

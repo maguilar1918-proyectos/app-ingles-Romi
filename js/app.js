@@ -403,6 +403,7 @@
   }
   async function home() {
     ses.active = false; $("#topbar").hidden = true; applyPrefs();
+    if (window.__activateUpdate) window.__activateUpdate();
     if (!S().parrot) await askName();
     const can = Store.canStart();
     render(`<div class="home-meta"><span class="chip">⭐ ${S().stars}</span><span class="chip">🔥 ${Store.streak()}</span></div>
@@ -497,8 +498,18 @@
   }
 
   /* ---------- Arranque ---------- */
+  let swReg = null;
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    // La versión nueva se activa sola cuando ella está en el inicio (nunca durante una sesión).
+    const activate = () => { if (swReg && swReg.waiting && !ses.active) swReg.waiting.postMessage("SKIP_WAITING"); };
+    navigator.serviceWorker.register("sw.js").then(reg => {
+      swReg = reg; activate();
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (nw) nw.addEventListener("statechange", () => { if (nw.state === "installed") activate(); });
+      });
+    }).catch(() => {});
+    window.__activateUpdate = activate;
     let reloading = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => { if (reloading || ses.active) return; reloading = true; location.reload(); });
   }
