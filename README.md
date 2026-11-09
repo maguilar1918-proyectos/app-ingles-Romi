@@ -10,7 +10,7 @@ App instalable (PWA) para practicar vocabulario y escritura en inglés (nivel Ca
 3. Ábrela una vez con internet para que quede guardada; después funciona sin conexión.
 
 ## Privacidad
-No hay cuentas ni servidor. Todo el progreso vive solo en la tablet (localStorage). Haz respaldos desde el panel de padres (mantén pulsado ⚙️ en la pantalla de inicio 1,5 s; PIN de 4 dígitos que se crea la primera vez).
+No hay cuentas ni servidor. Todo el progreso vive solo en la tablet (localStorage). Haz respaldos desde el panel de padres (mantén pulsado ⚙️ en la pantalla de inicio 1 s; PIN de 4 dígitos que se crea la primera vez).
 
 ## Actualizaciones
 Cada cambio sube `CACHE_VERSION` en `sw.js`. El aviso de nueva versión aparece solo en el panel de padres.

@@ -65,7 +65,7 @@
     o = o || {};
     return new Promise(res => {
       render(`<div class="ask">
-        <div class="ask-pic">${o.showWord ? `<div class="word-big">${w.en}</div>` : ""}<div class="big-emoji">${w.emoji}</div></div>
+        <div class="ask-pic">${o.showWord ? `<div class="word-big">${w.en}</div>` : ""}<div class="big-emoji">${o.hidePic ? "🔊" : w.emoji}</div></div>
         <div class="ask-input">
           <div class="ans" id="ans"><span id="ansTxt"></span></div>
           <div id="kb" class="kb"></div>
@@ -94,6 +94,7 @@
       $("#okBtn").onclick = submit;
       const idk = $("#idkBtn"); if (idk) idk.onclick = () => { document.removeEventListener("keydown", onKd); res("idk"); };
       const hear = $("#hearBtn"); if (hear) hear.onclick = () => Sound.word(w);
+      if (o.hidePic) $(".ask-pic").onclick = () => Sound.word(w);
       if (o.autoSpeak) Sound.word(w);
     });
   }
@@ -151,10 +152,49 @@
     star(); cheer(); Sound.sfx.good();
     say("¡Palabra nueva en tu jardín!", { speak: true }); await sleep(1500);
   }
+  // Palabras para practicar: primero las de hoy, luego las más débiles.
+  let cyc = 0;
+  function nextWord() {
+    const today = Store.introducedToday();
+    const rest = WORDS.filter(w => Store.get(w.id) && !today.includes(w)).sort((a, b) => Store.get(a.id).level - Store.get(b.id).level);
+    const p = today.concat(rest);
+    return p.length ? p[(cyc++) % p.length] : null;
+  }
+  // Hablar: escucha y repite 3 veces en voz alta.
+  async function sayTask(w) {
+    render(`<div class="card"><div class="big-emoji">${w.emoji}</div><div class="word-big">${w.en}</div>
+      <div class="row"><button class="btn soft" id="hear">🔊 Escuchar</button><button class="btn go" id="said">¡Lo dije! 🗣️ 0/3</button></div></div>`);
+    say("Escucha y repite en voz alta.", { then: [{ t: w.en, lang: "en" }] });
+    $("#hear").onclick = () => Sound.word(w);
+    let n = 0;
+    await new Promise(res => { $("#said").onclick = () => {
+      n++; Sound.sfx.tap(); $("#said").textContent = `¡Lo dije! 🗣️ ${n}/3`;
+      if (n >= 3) { star(); cheer(); Sound.sfx.good(); say("¡Qué bien suena! Tres veces.", { speak: false }); setTimeout(res, 1100); }
+      else say(n === 1 ? "¡Otra vez, más fuerte!" : "¡Una más!", { speak: false });
+    }; });
+  }
+  // Escritura con ayuda: si falla, ve la palabra y la vuelve a escribir (sin castigo).
+  async function writeTask(w, o) {
+    const r = await askWord(w, o);
+    if (r === "ok") { star(); cheer(); Sound.sfx.good(); say("¡Bien escrita!", { speak: false }); Sound.word(w); await sleep(1300); }
+    else {
+      Sound.sfx.soft(); say(pickOne(HELP_MSG), { then: [{ t: w.en, lang: "en" }] }); await sleep(2200);
+      await askWord(w, { showWord: true, autoSpeak: true }); star(); Sound.sfx.good();
+      say("¡Muy bien!", { speak: false }); await sleep(1200);
+    }
+  }
+  // Mira la palabra 3 segundos, se oculta y la escribe de memoria.
+  async function peekWrite(w) {
+    render(`<div class="card"><div class="big-emoji">${w.emoji}</div><div class="word-big">${w.en}</div></div>`);
+    say("Mira bien las letras."); Sound.word(w); await sleep(3000);
+    say("¡Ahora escríbela tú!", { speak: false });
+    await writeTask(w, {});
+  }
   async function blockNew() {
     const q = Store.newWords();
-    if (!q.length) { say("¡Hoy toca repasar lo que sabes!"); await sleep(1800); return; }
+    if (!q.length) { say("¡Hoy toca repasar lo que sabes!"); await sleep(1800); }
     for (const w of q) { if (ses.timeUp) break; await newWordTask(w); }
+    while (!blockOver()) { const w = nextWord(); if (!w) break; await sayTask(w); if (blockOver()) break; await peekWrite(w); }
   }
 
   /* ---------- Bloque 3: juego «Escucha y toca» ---------- */
@@ -163,13 +203,16 @@
     if (pool.length < 3) pool = pool.concat(shuffle(WORDS.filter(w => !Store.get(w.id)))).slice(0, 3);
     return pool;
   }
-  async function gameRound(target, pool) {
+  // mode "listen": oye y toca la imagen. mode "read": ve la imagen y toca la palabra escrita.
+  async function gameRound(target, pool, mode) {
     const opts = shuffle([target, ...shuffle(pool.filter(w => w !== target)).slice(0, 2)]);
-    render(`<div class="card"><p class="instr">Toca lo que escuchas</p>
-      <div class="row"><button class="btn soft" id="hear">🔊 Otra vez</button></div>
-      <div class="choices">${opts.map((w, i) => `<button class="choice" data-i="${i}">${w.emoji}</button>`).join("")}</div></div>`);
-    say("Escucha y toca.", { speak: false });
-    Sound.word(target);
+    const read = mode === "read";
+    render(`<div class="card">${read ? `<div class="big-emoji" style="font-size:clamp(70px,16vmin,130px)">${target.emoji}</div>` : ""}
+      <p class="instr">${read ? "Toca la palabra" : "Toca lo que escuchas"}</p>
+      <div class="row"><button class="btn soft" id="hear">🔊 ${read ? "Escuchar" : "Otra vez"}</button></div>
+      <div class="choices">${opts.map((w, i) => `<button class="choice${read ? " txt" : ""}" data-i="${i}">${read ? w.en : w.emoji}</button>`).join("")}</div></div>`);
+    say(read ? "Lee y toca." : "Escucha y toca.", { speak: false });
+    if (!read) Sound.word(target);
     $("#hear").onclick = () => Sound.word(target);
     let tries = 0;
     await new Promise(res => {
@@ -182,7 +225,7 @@
           setTimeout(res, 1200);
         } else {
           tries++; b.classList.add("miss"); b.disabled = true; Sound.sfx.soft();
-          say("Casi. Escucha otra vez.", { speak: false }); Sound.word(target);
+          say("Casi. Inténtalo otra vez.", { speak: false }); Sound.word(target);
         }
       });
     });
@@ -190,7 +233,7 @@
   async function blockGame() {
     const pool = gamePool(); let n = 0;
     const targets = shuffle(pool);
-    while (!blockOver() && n < 10) { await gameRound(targets[n % targets.length], pool); n++; }
+    while (!blockOver()) { await gameRound(targets[n % targets.length], pool, n % 2 ? "read" : "listen"); n++; }
   }
 
   /* ---------- Bloque 4: arma la palabra + mini prueba ---------- */
@@ -216,9 +259,13 @@
   }
   async function blockWrite() {
     const today = Store.introducedToday();
-    const extra = shuffle(WORDS.filter(w => Store.get(w.id) && !today.includes(w))).slice(0, 2);
-    const list = today.concat(extra);
-    for (const w of list) { if (ses.timeUp) break; await buildTask(w); }
+    // Escritura hasta dejar tiempo para la mini prueba (~35 s por palabra nueva).
+    const reserve = today.length * 35; let k = 0;
+    while (!ses.timeUp && ses.blockElapsed < ses.blockSecs - reserve) {
+      const w = nextWord(); if (!w) break;
+      if (k++ % 2 === 0) await buildTask(w);
+      else { say("Escucha y escribe."); await writeTask(w, { hidePic: true, autoSpeak: true }); }
+    }
     // Mini prueba final: recuerdo inmediato de las palabras nuevas de hoy.
     if (today.length) {
       say("¡Mini prueba! Las palabras nuevas de hoy.");
@@ -239,14 +286,14 @@
   /* ---------- Pausa activa ---------- */
   const BREAKS = ["¡Salta diez veces como un loro!", "¡Estira los brazos como alas!", "¡Baila conmigo!", "¡Toca tus pies y sacude las manos!"];
   async function activeBreak() {
-    ses.breaking = true; let left = 30, skip = false;
-    render(`<div class="break">🦜</div><div class="count" id="cnt">30</div>
+    ses.breaking = true; let left = 10, skip = false;
+    render(`<div class="break">🦜</div><div class="count" id="cnt">10</div>
       <div class="row"><button class="btn soft" id="skip" hidden>Seguir ➜</button></div>`);
     say("Pausa activa. " + pickOne(BREAKS));
     $("#skip").onclick = () => { skip = true; };
     while (left > 0 && !skip) {
       await sleep(1000); left--; const c = $("#cnt"); if (c) c.textContent = left;
-      if (left === 20 && $("#skip")) $("#skip").hidden = false;
+      if (left === 5 && $("#skip")) $("#skip").hidden = false;
     }
     ses.breaking = false;
   }
@@ -292,7 +339,8 @@
     $("#topbar").hidden = false; $("#gear")?.remove();
     const runners = [blockCold, blockNew, blockGame, blockWrite];
     for (let i = 0; i < 4 && !ses.timeUp; i++) {
-      ses.blockIdx = i; ses.blockElapsed = 0; drawPips();
+      // El tiempo que sobra de un bloque corto se reparte en los siguientes (la sesión siempre llena su duración).
+      ses.blockIdx = i; ses.blockElapsed = 0; ses.blockSecs = Math.max(60, (ses.total - ses.elapsed) / (4 - i)); drawPips();
       await runners[i]();
       if (i < 3 && !ses.timeUp) await activeBreak();
     }
@@ -306,8 +354,29 @@
     say(`¡Lo lograste! Hoy ganaste ${ses.stars} estrellas. ¡Nos vemos mañana!`);
     render(`<div class="big-emoji">🏆</div><div class="home-meta"><span class="chip">⭐ ${ses.stars} hoy</span>
       <span class="chip">🌱 ${ses.newWords} palabras nuevas</span><span class="chip">🔥 ${Store.streak()} días</span></div>
-      <div class="row"><button class="btn go" id="bye">Terminar</button></div>`);
+      <div class="row"><button class="btn soft" id="more">Seguir practicando ➜</button><button class="btn go" id="bye">Terminar</button></div>`);
     $("#bye").onclick = () => { home(); };
+    $("#more").onclick = () => { runExtra(); };
+  }
+  // Práctica extra si ella quiere seguir: 5 min más de juegos, escritura y hablar con lo que ya conoce.
+  async function runExtra() {
+    Object.assign(ses, { active: true, paused: false, breaking: false, elapsed: 0, total: 300, blockElapsed: 0, blockSecs: 300,
+      blockIdx: 4, idle: 0, stars: 0, newWords: 0, timeUp: false });
+    $("#topbar").hidden = false; drawPips(); $("#gear")?.remove();
+    const pool = gamePool(); let k = 0;
+    say("¡Bonus! Cinco minutos más. ¡Vamos!");
+    await sleep(1800);
+    while (!ses.timeUp) {
+      const w = nextWord() || pool[0];
+      switch (k++ % 5) {
+        case 0: await gameRound(w, pool, "listen"); break;
+        case 1: await sayTask(w); break;
+        case 2: await buildTask(w); break;
+        case 3: await gameRound(w, pool, "read"); break;
+        default: say("Escucha y escribe."); await writeTask(w, { hidePic: true, autoSpeak: true });
+      }
+    }
+    await finish();
   }
 
   /* ---------- Inicio y nombre del loro ---------- */
@@ -338,17 +407,19 @@
     const can = Store.canStart();
     render(`<div class="home-meta"><span class="chip">⭐ ${S().stars}</span><span class="chip">🔥 ${Store.streak()}</span></div>
       <div class="big-emoji">${can ? "🌟" : "🌙"}</div>
-      ${can ? `<button class="btn hero" id="start">¡Empezar!</button>` : `<p class="instr">¡Ya practicaste hoy! Mañana más.</p>`}
+      ${can ? `<button class="btn hero" id="start">¡Empezar!</button>` : `<p class="instr">¡Ya practicaste hoy! Mañana más.</p>
+        <button class="btn soft" id="more">Seguir practicando ➜</button>`}
       <button id="gear" aria-label="Padres">⚙️</button>`);
     say(can ? greeting() : `¡Qué gran trabajo hoy! ${parrotName()} te espera mañana.`);
     if (can) $("#start").onclick = () => { Sound.sfx.good(); runSession(); };
+    else $("#more").onclick = () => { Sound.sfx.good(); runExtra(); };
     setupGear();
   }
 
   /* ---------- Panel de padres (Etapa 4 lo amplía) ---------- */
   function setupGear() {
     const g = $("#gear"); let timer;
-    const down = e => { e.preventDefault(); timer = setTimeout(parents, 1500); };
+    const down = e => { e.preventDefault(); timer = setTimeout(parents, 1000); };
     const up = () => clearTimeout(timer);
     g.addEventListener("pointerdown", down); g.addEventListener("pointerup", up); g.addEventListener("pointerleave", up);
   }
@@ -391,7 +462,7 @@
       <h3>Minutos (últimos 7 días)</h3><table><tr>${days}</tr></table>
       <h3>Palabras</h3><table><tr><th>Palabra</th><th>Nivel</th><th>Fallos</th></tr>${rows}</table>
       <h3>Ajustes</h3>
-      <p><label>Duración (min): <select id="mins">${[10, 15, 20, 25, 30].map(m => `<option ${m === S().settings.minutes ? "selected" : ""}>${m}</option>`).join("")}</select></label>
+      <p><label>Duración (min): <select id="mins">${[15, 20, 25, 30].map(m => `<option ${m === S().settings.minutes ? "selected" : ""}>${m}</option>`).join("")}</select></label>
       &nbsp; <label><input type="checkbox" id="calm" ${S().settings.calm ? "checked" : ""}> Modo calma</label></p>
       <p><button class="btn soft" id="extra">Dar tiempo extra hoy</button> <button class="btn soft" id="exp">Respaldar</button>
       <label class="btn soft" style="display:inline-block">Restaurar<input type="file" id="imp" accept=".json" hidden></label></p>
