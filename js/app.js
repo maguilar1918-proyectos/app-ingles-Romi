@@ -463,6 +463,7 @@
       <h3>Palabras</h3><table><tr><th>Palabra</th><th>Nivel</th><th>Fallos</th></tr>${rows}</table>
       <h3>Ajustes</h3>
       <p><label>Duración (min): <select id="mins">${[15, 20, 25, 30].map(m => `<option ${m === S().settings.minutes ? "selected" : ""}>${m}</option>`).join("")}</select></label>
+      &nbsp; <label>Palabras nuevas por día: <select id="npd">${[3, 4, 5, 6, 7, 8].map(m => `<option ${m === S().settings.newPerDay ? "selected" : ""}>${m}</option>`).join("")}</select></label>
       &nbsp; <label><input type="checkbox" id="calm" ${S().settings.calm ? "checked" : ""}> Modo calma</label></p>
       <p><button class="btn soft" id="extra">Dar tiempo extra hoy</button> <button class="btn soft" id="exp">Respaldar</button>
       <label class="btn soft" style="display:inline-block">Restaurar<input type="file" id="imp" accept=".json" hidden></label></p>
@@ -471,6 +472,7 @@
       <p><button class="btn soft" id="reset">Reiniciar progreso</button> <button class="btn go" id="close">Cerrar</button></p>
       <p style="font-size:13px">Herramienta de apoyo al aprendizaje; no es una terapia ni reemplaza a su especialista.</p></div>`;
     $("#mins").onchange = e => { S().settings.minutes = +e.target.value; Store.save(); };
+    $("#npd").onchange = e => { S().settings.newPerDay = +e.target.value; Store.save(); };
     $("#calm").onchange = e => { S().settings.calm = e.target.checked; Store.save(); applyPrefs(); };
     $("#extra").onclick = () => { S().settings.extra[t] = true; Store.save(); $("#extra").textContent = "¡Listo! ✔"; };
     $("#exp").onclick = () => {

@@ -5,7 +5,7 @@ const Store = (() => {
 
   const fresh = () => ({
     v: 1, parrot: "", stars: 0, words: {}, days: {},
-    settings: { minutes: 20, sound: true, calm: false, pin: "", extra: {} },
+    settings: { minutes: 20, newPerDay: MAX_NEW_PER_SESSION, sound: true, calm: false, pin: "", extra: {} },
     offset: 0
   });
 
@@ -67,7 +67,7 @@ const Store = (() => {
   const newWords = () => {
     const t = dayNum();
     const doneToday = WORDS.filter(x => S.words[x.id] && S.words[x.id].intro === t).length;
-    const left = Math.max(0, MAX_NEW_PER_SESSION - doneToday);
+    const left = Math.max(0, S.settings.newPerDay - doneToday);
     return WORDS.filter(x => !S.words[x.id]).slice(0, left);
   };
   const introducedToday = () => WORDS.filter(x => S.words[x.id] && S.words[x.id].intro === dayNum());
