@@ -134,3 +134,19 @@ body.calm #parrot,body.calm .btn.hero,body.calm .break{animation:none}
   .btn{min-height:58px;padding:8px 22px}
 }
 .choice.txt{width:auto;min-width:clamp(110px,22vmin,170px);padding:0 24px;height:clamp(70px,14vmin,100px);font-size:clamp(28px,6vmin,46px);font-weight:900}
+
+/* Variedad de tareas */
+#stage{justify-content:safe center;overflow-y:auto}
+.tagline{align-self:center;background:var(--sun);border:2px solid var(--navy);border-radius:14px;padding:3px 14px;font-size:clamp(14px,2.4vmin,18px);font-weight:bold}
+canvas.trace{background:#fffef8;border:3px dashed var(--line);border-radius:20px;touch-action:none;max-width:100%}
+.tile.wordtile{width:auto;min-width:64px;padding:0 18px;font-size:clamp(24px,5vmin,38px);height:clamp(56px,10vmin,72px)}
+.sentence{min-height:clamp(48px,9vmin,70px);font-size:clamp(26px,5.4vmin,42px);font-weight:900;text-align:center;border-bottom:4px solid var(--navy);width:100%;padding:0 6px}
+.pairs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%}
+.pcard{height:clamp(86px,17vmin,130px);border-radius:20px;border:3px solid var(--navy);background:var(--sky);font-size:clamp(34px,8vmin,56px);color:#fff;box-shadow:0 4px 0 var(--navy);padding:0}
+.pcard .face{display:none;color:var(--navy)}
+.pcard .face.w{font-size:clamp(22px,5vmin,34px);font-weight:900}
+.pcard.up{background:#fff}.pcard.up .face{display:inline}.pcard.up .front{display:none}
+.pcard.done{background:#eafbe8;border-color:var(--leaf)}
+.stamps{display:flex;gap:14px}
+.stamp{width:clamp(52px,9vmin,68px);height:clamp(52px,9vmin,68px);border-radius:50%;border:3px dashed var(--lock,#b9b2a0);display:grid;place-items:center;font-size:clamp(24px,4.4vmin,32px);filter:grayscale(1);opacity:.55}
+.stamp.done{border-style:solid;border-color:var(--sun);background:#fff;filter:none;opacity:1;transform:rotate(-6deg)}

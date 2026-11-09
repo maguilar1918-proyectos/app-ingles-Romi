@@ -134,7 +134,7 @@
     });
   }
   async function newWordTask(w) {
-    render(`<div class="card"><div class="big-emoji">${w.emoji}</div><div class="word-big">${w.en}</div>
+    render(`<div class="card">${tag(CATEGORIES[w.cat].icon + " " + CATEGORIES[w.cat].label + " · Palabra nueva")}<div class="big-emoji" style="font-size:clamp(80px,20vmin,150px)">${w.emoji}</div><div class="word-big">${w.en}</div>
       <div class="es-small">${w.es}</div><div class="hook">🦜 ${w.hook}</div>
       <div class="row"><button class="btn soft" id="hear">🔊 Escuchar</button></div></div>`);
     say("Mira y escucha.", { then: [{ t: w.en, lang: "en" }] });
@@ -146,6 +146,7 @@
     $("#hear").onclick = () => Sound.word(w);
     await nextBtn("¡Lo dije! 🗣️");
     star(); Sound.sfx.good();
+    await traceTask(w);
     say("Ahora escríbela copiando.", { speak: true });
     await askWord(w, { showWord: true, autoSpeak: true });
     if (!Store.get(w.id)) { Store.introduce(w.id); ses.newWords++; }
@@ -190,11 +191,138 @@
     say("¡Ahora escríbela tú!", { speak: false });
     await writeTask(w, {});
   }
+  const tag = t => `<div class="tagline">${t}</div>`;
+  const hearRow = w => { const b = $("#hear"); if (b) b.onclick = () => Sound.word(w); };
+
+  // Trazar con el dedo: palabra punteada sobre un lienzo; se completa al cubrir ~85 % del trazo.
+  function traceTask(w) {
+    return new Promise(res => {
+      render(`<div class="card">${tag("✏️ Traza con el dedo")}<div class="big-emoji" style="font-size:clamp(50px,11vmin,90px)">${w.emoji}</div>
+        <canvas id="cv" class="trace"></canvas>
+        <div class="row"><button class="btn soft" id="hear">🔊</button><button class="btn soft" id="clr">🧽 Borrar</button>
+        <button class="btn soft" id="skipT" hidden>Siguiente ➜</button></div></div>`);
+      say("Pasa el dedo sobre las letras.", { speak: true }); Sound.word(w);
+      const cv = $("#cv"), W = Math.max(260, Math.min(620, stage.clientWidth - 70)), H = 170;
+      cv.width = W; cv.height = H; cv.style.width = W + "px"; cv.style.height = H + "px";
+      const ctx = cv.getContext("2d"), family = getComputedStyle(document.body).fontFamily;
+      let fs = 130; const setFont = c => { c.font = `900 ${fs}px ${family}`; c.textAlign = "center"; c.textBaseline = "middle"; };
+      setFont(ctx); while (ctx.measureText(w.en).width > W - 40 && fs > 30) { fs -= 6; setFont(ctx); }
+      const m = document.createElement("canvas"); m.width = W; m.height = H;
+      const mc = m.getContext("2d"); setFont(mc); mc.fillStyle = "#000"; mc.fillText(w.en, W / 2, H / 2 + fs * 0.05);
+      const md = mc.getImageData(0, 0, W, H).data, pts = [];
+      for (let y = 0; y < H; y += 6) for (let x = 0; x < W; x += 6) if (md[(y * W + x) * 4 + 3] > 128) pts.push({ x, y, hit: false });
+      const guide = () => {
+        ctx.clearRect(0, 0, W, H); setFont(ctx);
+        ctx.fillStyle = "rgba(63,169,201,.14)"; ctx.fillText(w.en, W / 2, H / 2 + fs * 0.05);
+        ctx.setLineDash([7, 9]); ctx.lineWidth = 3; ctx.strokeStyle = "#8a8f9c"; ctx.strokeText(w.en, W / 2, H / 2 + fs * 0.05); ctx.setLineDash([]);
+        pts.forEach(p => p.hit = false);
+      };
+      guide();
+      let drawing = false, last = null, done = false;
+      const pos = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; };
+      const stroke = (a, b) => {
+        ctx.strokeStyle = "#3FA9C9"; ctx.lineWidth = 18; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        pts.forEach(p => { if (!p.hit && Math.hypot(p.x - b.x, p.y - b.y) < 20) p.hit = true; });
+        if (!done && pts.filter(p => p.hit).length / pts.length >= 0.85) {
+          done = true; Sound.sfx.good(); star(); cheer(); say("¡Qué bonito trazo!", { speak: false }); Sound.word(w); setTimeout(res, 1300);
+        }
+      };
+      cv.onpointerdown = e => { e.preventDefault(); drawing = true; touch(); last = pos(e); stroke(last, last); try { cv.setPointerCapture(e.pointerId); } catch (x) {} };
+      cv.onpointermove = e => { if (!drawing || done) return; touch(); const p = pos(e); stroke(last, p); last = p; };
+      cv.onpointerup = cv.onpointercancel = () => { drawing = false; };
+      $("#clr").onclick = () => { if (!done) guide(); };
+      hearRow(w);
+      setTimeout(() => { const s = $("#skipT"); if (s) { s.hidden = false; s.onclick = () => res(); } }, 20000);
+    });
+  }
+
+  // Completar la palabra: faltan 1 o 2 letras; se eligen entre fichas.
+  async function fillTask(w) {
+    const letters = [...w.en], n = letters.length >= 5 ? 2 : 1;
+    const idxs = shuffle(letters.map((_, i) => i)).slice(0, n).sort((a, b) => a - b), need = idxs.map(i => letters[i]);
+    const extras = shuffle([..."abcdefghilmnoprstuw"].filter(c => !need.includes(c))).slice(0, 3);
+    const tiles = shuffle(need.concat(extras));
+    render(`<div class="card">${tag("✍️ Completa la palabra")}<div class="big-emoji" style="font-size:clamp(70px,16vmin,130px)">${w.emoji}</div>
+      <div class="slots" id="slots">${letters.map((c, i) => `<div class="slot">${idxs.includes(i) ? "" : c}</div>`).join("")}</div>
+      <div class="tiles">${tiles.map((c, k) => `<button class="tile" data-k="${k}">${c}</button>`).join("")}</div>
+      <div class="row"><button class="btn soft" id="hear">🔊</button></div></div>`);
+    say("¿Qué letras faltan?", { speak: true }); hearRow(w);
+    let pos = 0;
+    await new Promise(res => stage.querySelectorAll(".tile").forEach(b => b.onclick = () => {
+      touch();
+      if (b.textContent === need[pos]) {
+        $("#slots").children[idxs[pos]].textContent = need[pos]; b.classList.add("used"); pos++; Sound.sfx.tap();
+        if (pos === need.length) { Sound.sfx.good(); star(); cheer(); say("¡Completaste " + w.en + "!", { speak: false }); Sound.word(w); setTimeout(res, 1300); }
+      } else { b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); Sound.sfx.soft(); }
+    }));
+  }
+
+  // Armar la oración tocando las palabras en orden.
+  async function sentenceTask(w) {
+    const words = w.sent.split(" "), tiles = shuffle(words.map((t, i) => ({ t, i })));
+    render(`<div class="card">${tag("📝 Arma la oración")}<div class="big-emoji" style="font-size:clamp(60px,13vmin,110px)">${w.emoji}</div>
+      <div class="sentence" id="sline">&nbsp;</div>
+      <div class="tiles">${tiles.map((o, k) => `<button class="tile wordtile" data-k="${k}">${o.t}</button>`).join("")}</div></div>`);
+    say("Toca las palabras en orden.", { speak: true });
+    let pos = 0;
+    await new Promise(res => stage.querySelectorAll(".tile").forEach(b => b.onclick = () => {
+      touch();
+      if (b.textContent === words[pos]) {
+        pos++; b.classList.add("used"); $("#sline").textContent = words.slice(0, pos).join(" "); Sound.sfx.tap();
+        if (pos === words.length) { Sound.sfx.good(); star(); cheer(); say("¡Escribiste una oración!", { speak: false }); Sound.speak([{ t: w.sent, lang: "en" }]); setTimeout(res, 2200); }
+      } else { b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); Sound.sfx.soft(); }
+    }));
+  }
+
+  // Memoria de pares: une imagen con palabra.
+  async function pairsTask(w, pool) {
+    const set = shuffle([w, ...shuffle(pool.filter(x => x !== w)).slice(0, 2)]);
+    const cards = shuffle(set.flatMap(x => [{ id: x.id, f: x.emoji, c: "" }, { id: x.id, f: x.en, c: " w" }]));
+    render(`<div class="card">${tag("🃏 Memoria de pares")}<p class="instr">Une la imagen con su palabra</p>
+      <div class="pairs">${cards.map((c, i) => `<button class="pcard up" data-i="${i}"><span class="front">❓</span><span class="face${c.c}">${c.f}</span></button>`).join("")}</div></div>`);
+    say("Mira bien. ¡Se van a esconder!", { speak: true }); await sleep(2600);
+    const els = [...stage.querySelectorAll(".pcard")]; els.forEach(e => e.classList.remove("up"));
+    say("¿Dónde están las parejas?", { speak: false });
+    let open = [], found = 0, lock = false;
+    await new Promise(res => els.forEach((el, i) => el.onclick = () => {
+      if (lock || el.classList.contains("up")) return;
+      touch(); el.classList.add("up"); Sound.sfx.tap(); open.push(i);
+      if (open.length < 2) return;
+      const [a, b] = open; open = [];
+      if (cards[a].id === cards[b].id) {
+        found++; els[a].classList.add("done"); els[b].classList.add("done"); Sound.sfx.good(); star(); cheer();
+        if (found === 3) { say("¡Todas las parejas!", { speak: false }); setTimeout(res, 1100); }
+      } else {
+        lock = true; Sound.sfx.soft(); say("Casi. ¡Prueba otra vez!", { speak: false });
+        setTimeout(() => { els[a].classList.remove("up"); els[b].classList.remove("up"); lock = false; }, 1000);
+      }
+    }));
+  }
+
+  // Rotación de tareas: nunca la misma dos veces seguidas, así cada bloque se siente distinto.
+  const TASKS = {
+    say: w => sayTask(w), peek: w => peekWrite(w), fill: w => fillTask(w), trace: w => traceTask(w), build: w => buildTask(w),
+    lwrite: async w => { say("Escucha y escribe."); await writeTask(w, { hidePic: true, autoSpeak: true }); },
+    sentence: w => sentenceTask(w), listen: (w, p) => gameRound(w, p, "listen"), read: (w, p) => gameRound(w, p, "read"),
+    pairs: (w, p) => pairsTask(w, p)
+  };
+  async function runKind(kind) {
+    let w = nextWord(); if (!w) return false;
+    if (kind === "sentence" && !w.sent) {
+      const alt = shuffle(WORDS.filter(x => Store.get(x.id) && x.sent))[0];
+      if (alt) w = alt; else kind = "build";
+    }
+    await TASKS[kind](w, gamePool()); return true;
+  }
+  async function variety(seq, until) {
+    let i = 0; while (!until()) { if (!(await runKind(seq[i++ % seq.length]))) break; }
+  }
+
   async function blockNew() {
     const q = Store.newWords();
     if (!q.length) { say("¡Hoy toca repasar lo que sabes!"); await sleep(1800); }
     for (const w of q) { if (ses.timeUp) break; await newWordTask(w); }
-    while (!blockOver()) { const w = nextWord(); if (!w) break; await sayTask(w); if (blockOver()) break; await peekWrite(w); }
+    await variety(["say", "fill", "peek", "pairs", "sentence"], blockOver);
   }
 
   /* ---------- Bloque 3: juego «Escucha y toca» ---------- */
@@ -207,7 +335,7 @@
   async function gameRound(target, pool, mode) {
     const opts = shuffle([target, ...shuffle(pool.filter(w => w !== target)).slice(0, 2)]);
     const read = mode === "read";
-    render(`<div class="card">${read ? `<div class="big-emoji" style="font-size:clamp(70px,16vmin,130px)">${target.emoji}</div>` : ""}
+    render(`<div class="card">${tag(read ? "👀 Look and read" : "🎧 Listen and tick")}${read ? `<div class="big-emoji" style="font-size:clamp(70px,16vmin,130px)">${target.emoji}</div>` : ""}
       <p class="instr">${read ? "Toca la palabra" : "Toca lo que escuchas"}</p>
       <div class="row"><button class="btn soft" id="hear">🔊 ${read ? "Escuchar" : "Otra vez"}</button></div>
       <div class="choices">${opts.map((w, i) => `<button class="choice${read ? " txt" : ""}" data-i="${i}">${read ? w.en : w.emoji}</button>`).join("")}</div></div>`);
@@ -231,14 +359,12 @@
     });
   }
   async function blockGame() {
-    const pool = gamePool(); let n = 0;
-    const targets = shuffle(pool);
-    while (!blockOver()) { await gameRound(targets[n % targets.length], pool, n % 2 ? "read" : "listen"); n++; }
+    await variety(["listen", "read", "pairs", "fill", "listen", "read", "sentence"], blockOver);
   }
 
   /* ---------- Bloque 4: arma la palabra + mini prueba ---------- */
   async function buildTask(w) {
-    render(`<div class="card"><div class="big-emoji">${w.emoji}</div>
+    render(`<div class="card">${tag("🔤 Escucha y arma")}<div class="big-emoji">${w.emoji}</div>
       <div class="slots" id="slots"></div><div class="tiles" id="tiles"></div>
       <div class="row"><button class="btn soft" id="hear">🔊</button></div></div>`);
     say("Escucha y arma la palabra.", { speak: false }); Sound.word(w);
@@ -260,12 +386,8 @@
   async function blockWrite() {
     const today = Store.introducedToday();
     // Escritura hasta dejar tiempo para la mini prueba (~35 s por palabra nueva).
-    const reserve = today.length * 35; let k = 0;
-    while (!ses.timeUp && ses.blockElapsed < ses.blockSecs - reserve) {
-      const w = nextWord(); if (!w) break;
-      if (k++ % 2 === 0) await buildTask(w);
-      else { say("Escucha y escribe."); await writeTask(w, { hidePic: true, autoSpeak: true }); }
-    }
+    const reserve = today.length * 35;
+    await variety(["trace", "build", "sentence", "lwrite", "trace", "fill"], () => ses.timeUp || ses.blockElapsed >= ses.blockSecs - reserve);
     // Mini prueba final: recuerdo inmediato de las palabras nuevas de hoy.
     if (today.length) {
       say("¡Mini prueba! Las palabras nuevas de hoy.");
@@ -363,19 +485,9 @@
     Object.assign(ses, { active: true, paused: false, breaking: false, elapsed: 0, total: 300, blockElapsed: 0, blockSecs: 300,
       blockIdx: 4, idle: 0, stars: 0, newWords: 0, timeUp: false });
     $("#topbar").hidden = false; drawPips(); $("#gear")?.remove();
-    const pool = gamePool(); let k = 0;
     say("¡Bonus! Cinco minutos más. ¡Vamos!");
     await sleep(1800);
-    while (!ses.timeUp) {
-      const w = nextWord() || pool[0];
-      switch (k++ % 5) {
-        case 0: await gameRound(w, pool, "listen"); break;
-        case 1: await sayTask(w); break;
-        case 2: await buildTask(w); break;
-        case 3: await gameRound(w, pool, "read"); break;
-        default: say("Escucha y escribe."); await writeTask(w, { hidePic: true, autoSpeak: true });
-      }
-    }
+    await variety(["listen", "say", "pairs", "trace", "read", "fill", "sentence", "lwrite", "build"], () => ses.timeUp);
     await finish();
   }
 
@@ -406,7 +518,12 @@
     if (window.__activateUpdate) window.__activateUpdate();
     if (!S().parrot) await askName();
     const can = Store.canStart();
+    const stamps = PASSPORT.map(k => {
+      const ok = WORDS.filter(w => w.cat === k).every(w => Store.get(w.id));
+      return `<div class="stamp ${ok ? "done" : ""}" title="${CATEGORIES[k].label}">${CATEGORIES[k].icon}</div>`;
+    }).join("");
     render(`<div class="home-meta"><span class="chip">⭐ ${S().stars}</span><span class="chip">🔥 ${Store.streak()}</span></div>
+      <div class="stamps">${stamps}</div>
       <div class="big-emoji">${can ? "🌟" : "🌙"}</div>
       ${can ? `<button class="btn hero" id="start">¡Empezar!</button>` : `<p class="instr">¡Ya practicaste hoy! Mañana más.</p>
         <button class="btn soft" id="more">Seguir practicando ➜</button>`}

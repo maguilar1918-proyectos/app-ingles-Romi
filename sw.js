@@ -1,5 +1,5 @@
 // Sube CACHE_VERSION en cada cambio para que la tablet se actualice.
-const CACHE_VERSION = "pasaporte-v5";
+const CACHE_VERSION = "pasaporte-v6";
 const FILES = ["./", "index.html", "manifest.webmanifest", "css/style.css", "js/data.js", "js/store.js", "js/audio.js", "js/app.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];
 
