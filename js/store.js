@@ -1,6 +1,6 @@
 // Guardado local y sistema de memoria (niveles + repaso espaciado).
 const Store = (() => {
-  const KEY = "pasaporte.v1";
+  const KEY = "pasaporte.v2"; // v2 = progreso reiniciado tras las pruebas
   let S;
 
   const fresh = () => ({
