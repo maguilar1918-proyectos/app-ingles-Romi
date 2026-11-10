@@ -102,6 +102,15 @@
  "Trazar": "Trace",
  "Armar": "Build",
  "Escribir al oído": "Write what you hear",
+ "Atrapa la palabra": "Catch the word",
+ "Arrastra a su imagen": "Drag to its picture",
+ "Atrapa la palabra que escuchas.": "Catch the word you hear.",
+ "¡Las atrapaste todas!": "You caught them all!",
+ "Arrastra cada palabra a su imagen.": "Drag each word to its picture.",
+ "¡Todas en su lugar!": "All in place!",
+ "Esa no va ahí. ¡Prueba otra!": "That one does not go there. Try another!",
+ "Atrapar": "Catch",
+ "Arrastrar": "Drag",
  "Escuchar": "Listen",
  "Otra vez": "Again",
  "Listo ✔": "Done ✔",
@@ -402,12 +411,105 @@
     }));
   }
 
+  // Atrapa la palabra: caen burbujas con palabras; toca la que escuchas. Sin vidas ni castigo.
+  async function catchTask(w, pool) {
+    const decoys = shuffle(pool.filter(x => x.id !== w.id)).slice(0, 3);
+    render(`<div class="card">${tag("🎯 Atrapa la palabra")}
+      <div class="catch-goal"><span class="goal-pic">${w.emoji}</span><span class="chip-count" id="catchN">0/4</span>
+      <button class="btn soft" id="hear">🔊</button></div><div class="catch" id="catch"></div></div>`);
+    say("Atrapa la palabra que escuchas.", { speak: true }); Sound.word(w);
+    const area = $("#catch"), NEED = 4; let got = 0, n = 0, ticks = 0;
+    $("#hear").onclick = () => { touch(); Sound.word(w); };
+    await new Promise(res => {
+      let ended = false;
+      const end = () => { if (ended) return; ended = true; clearInterval(iv); res(); };
+      const spawn = () => {
+        const target = n % 3 === 1 || Math.random() < 0.3; n++;
+        const x = target ? w : pickOne(decoys);
+        const b = document.createElement("button"); b.className = "fall"; b.textContent = x.en;
+        b.style.left = (4 + Math.random() * 62) + "%";
+        b.style.animationDuration = (S().settings.calm ? 10 : 7) + "s";
+        b.onclick = () => {
+          touch(); if (b.dataset.done) return; b.dataset.done = "1";
+          if (x === w) {
+            b.classList.add("pop"); got++; $("#catchN").textContent = got + "/" + NEED; star(); cheer(); Sound.sfx.good();
+            if (got >= NEED) { say("¡Las atrapaste todas!", { speak: false }); Sound.word(w); setTimeout(end, 1100); }
+          } else { b.classList.add("miss"); Sound.sfx.soft(); }
+        };
+        area.appendChild(b); setTimeout(() => b.remove(), 11000);
+      };
+      const iv = setInterval(() => {
+        area.classList.toggle("paused", !!ses.paused);
+        if (ses.paused) return;
+        ticks++;
+        if (ticks === 1 || ticks % 11 === 0) spawn();
+        if (ses.timeUp || ticks > 450) end();
+      }, 100);
+    });
+    area.innerHTML = "";
+  }
+
+  // Arrastra la palabra a su imagen (también funciona tocando la palabra y luego la imagen).
+  async function dragTask(w, pool) {
+    const set = shuffle([w, ...shuffle(pool.filter(x => x.id !== w.id)).slice(0, 2)]);
+    const chips = shuffle(set);
+    render(`<div class="card">${tag("🧲 Arrastra a su imagen")}
+      <div class="drops">${set.map(x => `<div class="drop" data-id="${x.id}"><span class="dpic">${x.emoji}</span><span class="dslot"></span></div>`).join("")}</div>
+      <div class="chips">${chips.map(x => `<button class="chip" data-id="${x.id}">${x.en}</button>`).join("")}</div></div>`);
+    say("Arrastra cada palabra a su imagen.", { speak: true });
+    const drops = [...stage.querySelectorAll(".drop")], els = [...stage.querySelectorAll(".chip")];
+    let placed = 0, sel = null;
+    await new Promise(res => {
+      const tryPlace = (chip, drop) => {
+        if (!drop || drop.classList.contains("filled")) return false;
+        if (drop.dataset.id === chip.dataset.id) {
+          drop.classList.add("filled"); drop.querySelector(".dslot").textContent = chip.textContent;
+          chip.remove(); sel = null; placed++; star(); cheer(); Sound.sfx.good(); Sound.word(wordById(drop.dataset.id));
+          if (placed === 3) { say("¡Todas en su lugar!", { speak: false }); setTimeout(res, 1600); }
+          return true;
+        }
+        chip.classList.remove("shake"); void chip.offsetWidth; chip.classList.add("shake");
+        Sound.sfx.soft(); say("Esa no va ahí. ¡Prueba otra!", { speak: false }); return false;
+      };
+      els.forEach(chip => {
+        let sx = 0, sy = 0, moved = false, down = false;
+        chip.onpointerdown = e => {
+          touch(); down = true; moved = false; sx = e.clientX; sy = e.clientY;
+          chip.setPointerCapture(e.pointerId); Sound.word(wordById(chip.dataset.id));
+        };
+        chip.onpointermove = e => {
+          if (!down) return;
+          const dx = e.clientX - sx, dy = e.clientY - sy;
+          if (!moved && Math.hypot(dx, dy) < 8) return;
+          moved = true; chip.classList.add("drag"); chip.style.transform = `translate(${dx}px,${dy}px)`;
+          chip.style.pointerEvents = "none";
+          const under = document.elementFromPoint(e.clientX, e.clientY);
+          chip.style.pointerEvents = "";
+          drops.forEach(d => d.classList.toggle("hot", !!under && d === under.closest(".drop")));
+        };
+        const up = e => {
+          if (!down) return; down = false; drops.forEach(d => d.classList.remove("hot"));
+          if (moved) {
+            chip.style.pointerEvents = "none";
+            const under = document.elementFromPoint(e.clientX, e.clientY);
+            chip.style.pointerEvents = "";
+            const drop = under && under.closest(".drop");
+            chip.classList.remove("drag"); chip.style.transform = "";
+            if (drop) tryPlace(chip, drop);
+          } else { els.forEach(c => c.classList.remove("sel")); sel = chip; chip.classList.add("sel"); Sound.sfx.tap(); }
+        };
+        chip.onpointerup = up; chip.onpointercancel = () => { down = false; chip.classList.remove("drag"); chip.style.transform = ""; };
+      });
+      drops.forEach(d => d.onclick = () => { touch(); if (sel && stage.contains(sel)) tryPlace(sel, d); });
+    });
+  }
+
   // Rotación de tareas: nunca la misma dos veces seguidas, así cada bloque se siente distinto.
   const TASKS = {
     say: w => sayTask(w), peek: w => peekWrite(w), fill: w => fillTask(w), trace: w => traceTask(w), build: w => buildTask(w),
     lwrite: async w => { say("Escucha y escribe."); await writeTask(w, { hidePic: true, autoSpeak: true }); },
     sentence: w => sentenceTask(w), listen: (w, p) => gameRound(w, p, "listen"), read: (w, p) => gameRound(w, p, "read"),
-    pairs: (w, p) => pairsTask(w, p)
+    pairs: (w, p) => pairsTask(w, p), catch: (w, p) => catchTask(w, p), drag: (w, p) => dragTask(w, p)
   };
   async function runKind(kind) {
     let w = nextWord(); if (!w) return false;
@@ -420,7 +522,8 @@
   const KIND_MENU = [
     ["say", "🗣️", "Hablar"], ["fill", "✍️", "Completar"], ["peek", "👀", "Mirar y escribir"], ["pairs", "🃏", "Pares"],
     ["sentence", "📝", "Oraciones"], ["listen", "🎧", "Escuchar"], ["read", "📖", "Leer"], ["trace", "🖍️", "Trazar"],
-    ["build", "🔤", "Armar"], ["lwrite", "⌨️", "Escribir al oído"]
+    ["build", "🔤", "Armar"], ["lwrite", "⌨️", "Escribir al oído"],
+    ["catch", "🎯", "Atrapar"], ["drag", "🧲", "Arrastrar"]
   ];
   // Ella elige el tipo de ejercicio (o «Sorpréndeme» para ir variando).
   function chooseKind() {
@@ -448,7 +551,7 @@
     const q = Store.newWords();
     if (!q.length) { say("¡Hoy toca repasar lo que sabes!"); await sleep(1800); }
     for (const w of q) { if (ses.timeUp) break; await newWordTask(w); }
-    await variety(["say", "fill", "peek", "pairs", "sentence"], blockOver);
+    await variety(["say", "drag", "fill", "peek", "pairs", "sentence"], blockOver);
   }
 
   /* ---------- Bloque 3: juego «Escucha y toca» ---------- */
@@ -485,7 +588,7 @@
     });
   }
   async function blockGame() {
-    await variety(["listen", "read", "pairs", "fill", "listen", "read", "sentence"], blockOver);
+    await variety(["listen", "catch", "read", "drag", "pairs", "fill", "listen", "read", "catch", "sentence"], blockOver);
   }
 
   /* ---------- Bloque 4: arma la palabra + mini prueba ---------- */
@@ -614,7 +717,7 @@
     $("#renameBtn").hidden = true; $("#topbar").hidden = false; drawPips(); $("#gear")?.remove();
     say("¡Bonus! Cinco minutos más. ¡Vamos!");
     await sleep(1800);
-    await variety(["listen", "say", "pairs", "trace", "read", "fill", "sentence", "lwrite", "build"], () => ses.timeUp);
+    await variety(["listen", "catch", "say", "drag", "pairs", "trace", "read", "fill", "sentence", "lwrite", "build"], () => ses.timeUp);
     await finish();
   }
 
