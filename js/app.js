@@ -11,7 +11,9 @@
 
   /* ---------- Estado de la sesión ---------- */
   const ses = { active: false, paused: false, breaking: false, elapsed: 0, blockElapsed: 0, blockIdx: 0,
-    total: 1200, blockSecs: 300, idle: 0, idleSaid: false, stars: 0, newWords: 0, timeUp: false };
+    total: 1200, blockSecs: 300, idle: 0, idleSaid: false, stars: 0, newWords: 0, timeUp: false, hints: 3, change: false, pref: null };
+  const MAX_HINTS = 3; // ayudas «No me acuerdo» por sesión
+  const hintsText = () => ses.hints === 0 ? " Ya no te quedan ayudas." : ses.hints === 1 ? " Te queda 1 ayuda." : ` Te quedan ${ses.hints} ayudas.`;
   const BLOCKS = [
     { icon: "🧠", name: "Calentamiento" }, { icon: "🌟", name: "Palabras nuevas" },
     { icon: "🎮", name: "Juego" }, { icon: "✏️", name: "Escribe y cierre" }
@@ -71,7 +73,7 @@
           <div id="kb" class="kb"></div>
           <div class="row">
             <button class="btn go" id="okBtn">Listo ✔</button>
-            ${o.showWord ? '<button class="btn soft" id="hearBtn">🔊</button>' : '<button class="btn soft" id="idkBtn">No me acuerdo</button>'}
+            ${o.showWord ? '<button class="btn soft" id="hearBtn">🔊</button>' : `<button class="btn soft" id="idkBtn" ${ses.hints > 0 ? "" : "disabled"}>No me acuerdo · ${ses.hints > 0 ? ses.hints + (ses.hints === 1 ? " ayuda" : " ayudas") : "sin ayudas"}</button>`}
           </div>
         </div></div>`);
       let txt = ""; const out = $("#ansTxt"), ans = $("#ans");
@@ -92,7 +94,7 @@
       }
       document.addEventListener("keydown", onKd);
       $("#okBtn").onclick = submit;
-      const idk = $("#idkBtn"); if (idk) idk.onclick = () => { document.removeEventListener("keydown", onKd); res("idk"); };
+      const idk = $("#idkBtn"); if (idk) idk.onclick = () => { if (ses.hints <= 0) return; ses.hints--; document.removeEventListener("keydown", onKd); res("idk"); };
       const hear = $("#hearBtn"); if (hear) hear.onclick = () => Sound.word(w);
       if (o.hidePic) $(".ask-pic").onclick = () => Sound.word(w);
       if (o.autoSpeak) Sound.word(w);
@@ -112,8 +114,8 @@
       say(pickOne(PRAISE_COLD), { speak: false }); Sound.word(w); await sleep(1700);
     } else {
       Store.recordCold(w.id, false); Sound.sfx.soft();
-      say(pickOne(HELP_MSG), { then: [{ t: w.en, lang: "en" }] });
-      await sleep(2200);
+      say(pickOne(HELP_MSG) + (r === "idk" ? hintsText() : ""), { then: [{ t: w.en, lang: "en" }] });
+      await sleep(r === "idk" ? 3600 : 2200);
       say("Ahora escríbela tú.", { speak: false });
       await askWord(w, { showWord: true, autoSpeak: true });
       Sound.sfx.good(); star(); cheer();
@@ -179,7 +181,7 @@
     const r = await askWord(w, o);
     if (r === "ok") { star(); cheer(); Sound.sfx.good(); say("¡Bien escrita!", { speak: false }); Sound.word(w); await sleep(1300); }
     else {
-      Sound.sfx.soft(); say(pickOne(HELP_MSG), { then: [{ t: w.en, lang: "en" }] }); await sleep(2200);
+      Sound.sfx.soft(); say(pickOne(HELP_MSG) + (r === "idk" ? hintsText() : ""), { then: [{ t: w.en, lang: "en" }] }); await sleep(r === "idk" ? 3600 : 2200);
       await askWord(w, { showWord: true, autoSpeak: true }); star(); Sound.sfx.good();
       say("¡Muy bien!", { speak: false }); await sleep(1200);
     }
@@ -314,8 +316,31 @@
     }
     await TASKS[kind](w, gamePool()); return true;
   }
+  const KIND_MENU = [
+    ["say", "🗣️", "Hablar"], ["fill", "✍️", "Completar"], ["peek", "👀", "Mirar y escribir"], ["pairs", "🃏", "Pares"],
+    ["sentence", "📝", "Oraciones"], ["listen", "🎧", "Escuchar"], ["read", "📖", "Leer"], ["trace", "🖍️", "Trazar"],
+    ["build", "🔤", "Armar"], ["lwrite", "⌨️", "Escribir al oído"]
+  ];
+  // Ella elige el tipo de ejercicio (o «Sorpréndeme» para ir variando).
+  function chooseKind() {
+    return new Promise(res => {
+      render(`<div class="card"><p class="instr">¿Qué quieres practicar?</p>
+        <div class="menu">${KIND_MENU.map(k => `<button class="mbtn" data-k="${k[0]}"><span>${k[1]}</span>${k[2]}</button>`).join("")}
+        <button class="mbtn rnd" data-k=""><span>🎲</span>Sorpréndeme</button></div></div>`);
+      say("Tú eliges. ¿Qué quieres practicar?");
+      stage.querySelector(".menu").onclick = e => {
+        const b = e.target.closest(".mbtn"); if (!b) return;
+        Sound.sfx.good(); ses.pref = b.dataset.k || null; res();
+      };
+    });
+  }
   async function variety(seq, until) {
-    let i = 0; while (!until()) { if (!(await runKind(seq[i++ % seq.length]))) break; }
+    let i = 0; ses.pref = null; ses.change = false;
+    if (!until()) await chooseKind();
+    while (!until()) {
+      if (ses.change) { ses.change = false; await chooseKind(); if (until()) break; }
+      if (!(await runKind(ses.pref || seq[i++ % seq.length]))) break;
+    }
   }
 
   async function blockNew() {
@@ -397,7 +422,7 @@
         const r = await askWord(w);
         if (r === "ok") { star(); cheer(); Sound.sfx.good(); say("¡La recuerdas! Mañana la vemos otra vez.", { speak: false }); Sound.word(w); await sleep(1600); }
         else {
-          Sound.sfx.soft(); say(pickOne(HELP_MSG), { then: [{ t: w.en, lang: "en" }] }); await sleep(2200);
+          Sound.sfx.soft(); say(pickOne(HELP_MSG) + (r === "idk" ? hintsText() : ""), { then: [{ t: w.en, lang: "en" }] }); await sleep(r === "idk" ? 3600 : 2200);
           await askWord(w, { showWord: true, autoSpeak: true }); star(); Sound.sfx.good();
           say("¡Muy bien! Mañana la repasamos.", { speak: false }); await sleep(1500);
         }
@@ -445,6 +470,7 @@
       $("#resume").onclick = () => setPaused(false);
     } else { overlay.hidden = true; overlay.innerHTML = ""; touch(); }
   }
+  $("#swapBtn").onclick = () => { if (!ses.active || ses.paused) return; ses.change = true; Sound.sfx.tap(); say("¡Listo! Cambiamos de ejercicio al terminar este.", { speak: false }); };
   $("#pauseBtn").onclick = () => ses.active && setPaused(true);
   $("#muteBtn").onclick = () => { S().settings.sound = !S().settings.sound; Store.save(); applyPrefs(); if (!S().settings.sound) Sound.stop(); };
 
@@ -457,8 +483,8 @@
   async function runSession() {
     const mins = S().settings.minutes + 0;
     Object.assign(ses, { active: true, paused: false, breaking: false, elapsed: 0, blockIdx: 0, blockElapsed: 0, idle: 0,
-      total: mins * 60, blockSecs: mins * 15, stars: 0, newWords: 0, timeUp: false });
-    $("#topbar").hidden = false; $("#gear")?.remove();
+      total: mins * 60, blockSecs: mins * 15, stars: 0, newWords: 0, timeUp: false, hints: MAX_HINTS, change: false, pref: null });
+    $("#renameBtn").hidden = true; $("#topbar").hidden = false; $("#gear")?.remove();
     const runners = [blockCold, blockNew, blockGame, blockWrite];
     for (let i = 0; i < 4 && !ses.timeUp; i++) {
       // El tiempo que sobra de un bloque corto se reparte en los siguientes (la sesión siempre llena su duración).
@@ -483,8 +509,8 @@
   // Práctica extra si ella quiere seguir: 5 min más de juegos, escritura y hablar con lo que ya conoce.
   async function runExtra() {
     Object.assign(ses, { active: true, paused: false, breaking: false, elapsed: 0, total: 300, blockElapsed: 0, blockSecs: 300,
-      blockIdx: 4, idle: 0, stars: 0, newWords: 0, timeUp: false });
-    $("#topbar").hidden = false; drawPips(); $("#gear")?.remove();
+      blockIdx: 4, idle: 0, stars: 0, newWords: 0, timeUp: false, hints: MAX_HINTS, change: false, pref: null });
+    $("#renameBtn").hidden = true; $("#topbar").hidden = false; drawPips(); $("#gear")?.remove();
     say("¡Bonus! Cinco minutos más. ¡Vamos!");
     await sleep(1800);
     await variety(["listen", "say", "pairs", "trace", "read", "fill", "sentence", "lwrite", "build"], () => ses.timeUp);
@@ -499,14 +525,15 @@
       `¡${n} está listo! ¿Y tú?`, `¡Qué alegría verte! Hoy aprendemos jugando.`, `¡Cuac no, soy loro! ¡Hola! ¿Empezamos?`];
     return g[Store.dayNum() % g.length];
   }
-  function askName() {
+  function askName(canCancel) {
     return new Promise(res => {
-      render(`<div class="card"><p class="instr">¿Cómo se llama el loro?</p>
+      render(`<div class="card"><p class="instr">${canCancel ? "¿Qué nombre nuevo le ponemos al loro?" : "¿Cómo se llama el loro?"}</p>
         <div class="ans" id="ans"><span id="ansTxt"></span></div><div id="kb" class="kb"></div>
-        <div class="row"><button class="btn go" id="okName">Listo ✔</button></div></div>`);
-      say("¡Hola! Aún no tengo nombre. ¿Me pones uno?");
+        <div class="row">${canCancel ? '<button class="btn soft" id="noName">Cancelar</button>' : ""}<button class="btn go" id="okName">Listo ✔</button></div></div>`);
+      say(canCancel ? "¿Cómo quieres llamarme ahora?" : "¡Hola! Aún no tengo nombre. ¿Me pones uno?");
       let t = ""; const out = $("#ansTxt");
       keyboard($("#kb"), k => { if (k === "back") t = t.slice(0, -1); else if (t.length < 12) t += k; out.textContent = t; });
+      const no = $("#noName"); if (no) no.onclick = () => res();
       $("#okName").onclick = () => {
         if (!t) return;
         S().parrot = t[0].toUpperCase() + t.slice(1); Store.save(); res();
@@ -515,6 +542,7 @@
   }
   async function home() {
     ses.active = false; $("#topbar").hidden = true; applyPrefs();
+    const rn = $("#renameBtn"); rn.hidden = true;
     if (window.__activateUpdate) window.__activateUpdate();
     if (!S().parrot) await askName();
     const can = Store.canStart();
@@ -528,6 +556,8 @@
       ${can ? `<button class="btn hero" id="start">¡Empezar!</button>` : `<p class="instr">¡Ya practicaste hoy! Mañana más.</p>
         <button class="btn soft" id="more">Seguir practicando ➜</button>`}
       <button id="gear" aria-label="Padres">⚙️</button>`);
+    rn.hidden = false;
+    rn.onclick = async () => { rn.hidden = true; const old = S().parrot; await askName(true); Store.save(); home(); if (S().parrot !== old) cheer(); };
     say(can ? greeting() : `¡Qué gran trabajo hoy! ${parrotName()} te espera mañana.`);
     if (can) $("#start").onclick = () => { Sound.sfx.good(); runSession(); };
     else $("#more").onclick = () => { Sound.sfx.good(); runExtra(); };

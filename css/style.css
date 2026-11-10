@@ -150,3 +150,11 @@ canvas.trace{background:#fffef8;border:3px dashed var(--line);border-radius:20px
 .stamps{display:flex;gap:14px}
 .stamp{width:clamp(52px,9vmin,68px);height:clamp(52px,9vmin,68px);border-radius:50%;border:3px dashed var(--lock,#b9b2a0);display:grid;place-items:center;font-size:clamp(24px,4.4vmin,32px);filter:grayscale(1);opacity:.55}
 .stamp.done{border-style:solid;border-color:var(--sun);background:#fff;filter:none;opacity:1;transform:rotate(-6deg)}
+
+#renameBtn{flex:none;width:48px;height:48px;font-size:20px}
+#renameBtn[hidden]{display:none}
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;width:100%;max-width:640px}
+.mbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:92px;padding:8px;border-radius:22px;border:3px solid var(--navy);background:#fff;box-shadow:0 4px 0 var(--navy);font:inherit;font-weight:900;font-size:clamp(15px,2.8vmin,20px);color:var(--navy);cursor:pointer}
+.mbtn span{font-size:clamp(30px,6vmin,44px);line-height:1}
+.mbtn:active{transform:translateY(4px);box-shadow:none}
+.mbtn.rnd{background:var(--sun)}
