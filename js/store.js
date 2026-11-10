@@ -6,12 +6,13 @@ const Store = (() => {
   const fresh = () => ({
     v: 1, parrot: "", stars: 0, words: {}, days: {},
     settings: { minutes: 20, newPerDay: MAX_NEW_PER_SESSION, sound: true, calm: false, pin: "", extra: {} },
-    offset: 0
+    offset: 0,
+    spent: 0, bonus: 0, owned: [], worn: "", stickers: [], chestDay: -1, weekClaimed: -1
   });
 
   function load() {
     try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch (e) { S = fresh(); }
-    S.settings = Object.assign(fresh().settings, S.settings || {});
+    fill();
     return S;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
@@ -92,7 +93,13 @@ const Store = (() => {
     if (!o || o.v !== 1 || typeof o.words !== "object") throw new Error("Archivo no válido");
     S = o; load_after(); save();
   }
-  function load_after() { S.settings = Object.assign(fresh().settings, S.settings || {}); }
+  function load_after() { fill(); }
+  // Completa los campos que no existían en versiones anteriores.
+  function fill() {
+    const f = fresh();
+    for (const k in f) if (S[k] === undefined) S[k] = f[k];
+    S.settings = Object.assign(f.settings, S.settings || {});
+  }
   function reset() { S = fresh(); save(); }
 
   return { load, save, data: () => S, dayNum, get, introduce, scheduleTomorrow, recordCold, dueWords, newWords,

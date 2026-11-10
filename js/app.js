@@ -111,6 +111,30 @@
  "Esa no va ahí. ¡Prueba otra!": "That one does not go there. Try another!",
  "Atrapar": "Catch",
  "Arrastrar": "Drag",
+ "Jardín": "Garden",
+ "Álbum": "Album",
+ "Tienda": "Shop",
+ "Calendario": "Calendar",
+ "Volver": "Back",
+ "Quitar": "Take it off",
+ "Mi jardín": "My garden",
+ "Mi álbum": "My album",
+ "Tienda del loro": "Parrot shop",
+ "Mi calendario": "My calendar",
+ "Reto semanal": "Weekly challenge",
+ "Reclamar premio": "Claim prize",
+ "Abrir cofre": "Open chest",
+ "Aún no hay plantas. ¡Aprende tu primera palabra!": "No plants yet. Learn your first word!",
+ "Tus palabras crecen cuando las repasas.": "Your words grow when you review them.",
+ "¡Junta todos los stickers!": "Collect all the stickers!",
+ "¿Qué le compramos al loro?": "What shall we buy for the parrot?",
+ "¡Lo compraste!": "You got it!",
+ "No te alcanzan las monedas.": "Not enough coins yet.",
+ "Cada día que practicas ganas un sello.": "Every day you practice, you earn a stamp.",
+ "¡Tienes un cofre sorpresa!": "You have a surprise chest!",
+ "¡Nuevo sticker!": "New sticker!",
+ "Ya tenías todos los stickers. ¡Monedas extra!": "You have all the stickers. Extra coins!",
+ "¡Premio reclamado!": "Prize claimed!",
  "Escuchar": "Listen",
  "Otra vez": "Again",
  "Listo ✔": "Done ✔",
@@ -704,11 +728,13 @@
     $("#topbar").hidden = true;
     Sound.sfx.win(); confetti(); cheer();
     say(`¡Lo lograste! Hoy ganaste ${ses.stars} estrellas. ¡Nos vemos mañana!`, { en: `You did it! You earned ${ses.stars} stars today. See you tomorrow!` });
+    const chest = Rewards.chestReady();
     render(`<div class="big-emoji">🏆</div><div class="home-meta"><span class="chip">⭐ ${ses.stars} today</span>
       <span class="chip">🌱 ${ses.newWords} new words</span><span class="chip">🔥 ${Store.streak()} days</span></div>
-      <div class="row"><button class="btn soft" id="more">${bi("Seguir practicando ➜")}</button><button class="btn go" id="bye">${bi("Terminar")}</button></div>`);
+      <div class="row">${chest ? `<button class="btn hero" id="chest">🎁 ${bi("Abrir cofre")}</button>` : ""}<button class="btn soft" id="more">${bi("Seguir practicando ➜")}</button><button class="btn go" id="bye">${bi("Terminar")}</button></div>`);
     $("#bye").onclick = () => { home(); };
     $("#more").onclick = () => { runExtra(); };
+    if (chest) $("#chest").onclick = () => { Sound.sfx.good(); openChestScreen(); };
   }
   // Práctica extra si ella quiere seguir: 5 min más de juegos, escritura y hablar con lo que ya conoce.
   async function runExtra() {
@@ -719,6 +745,75 @@
     await sleep(1800);
     await variety(["listen", "catch", "say", "drag", "pairs", "trace", "read", "fill", "sentence", "lwrite", "build"], () => ses.timeUp);
     await finish();
+  }
+
+  /* ---------- Etapa 3: recompensas (jardín, álbum, tienda, calendario, cofre, reto semanal) ---------- */
+  function drawParrot() {
+    const a = Rewards.ACCESSORIES.find(x => x.id === S().worn);
+    parrotEl.innerHTML = "🦜" + (a ? `<span class="acc ${a.pos}">${a.e}</span>` : "");
+  }
+  function screen(title, body, speech) {
+    render(`<div class="card">${tag(title)}${body}<div class="row"><button class="btn soft" id="back">⬅ ${bi("Volver")}</button></div></div>`);
+    $("#back").onclick = () => { Sound.sfx.tap(); home(); };
+    if (speech) say(speech);
+  }
+  function showGarden() {
+    const g = Rewards.garden();
+    const body = g.length
+      ? `<p class="legend">🌱 New · 🌿 Learning · 🌷 Almost · 🌻 Mastered</p>
+         <div class="garden">${g.map(p => `<button class="plant" data-id="${p.w.id}"><span class="pl">${p.plant}</span><span class="pw">${p.w.emoji}</span><b>${p.w.en}</b></button>`).join("")}</div>`
+      : `<p class="instr">${bi("Aún no hay plantas. ¡Aprende tu primera palabra!")}</p>`;
+    screen("🌱 Mi jardín", body, "Tus palabras crecen cuando las repasas.");
+    stage.querySelectorAll(".plant").forEach(b => b.onclick = () => { touch(); Sound.word(wordById(b.dataset.id)); });
+  }
+  function showAlbum() {
+    const own = S().stickers, all = Rewards.STICKERS.concat(Rewards.RARE);
+    screen("🏷️ Mi álbum", `<p class="instr">${own.length}/${all.length}</p>
+      <div class="album">${all.map(s => `<div class="stk ${own.includes(s) ? "got" : ""}">${own.includes(s) ? s : "❔"}</div>`).join("")}</div>`,
+      "¡Junta todos los stickers!");
+  }
+  function showShop(msg) {
+    const own = S().owned;
+    screen("🎩 Tienda del loro", `<p class="instr">🪙 ${Rewards.coins()}</p>
+      <div class="shop">${Rewards.ACCESSORIES.map(x => {
+        const has = own.includes(x.id), on = S().worn === x.id;
+        return `<button class="item ${on ? "on" : ""}" data-id="${x.id}"><span>${x.e}</span><small>${has ? (on ? "✔" : "👍") : "🪙 " + x.cost}</small></button>`;
+      }).join("")}</div>
+      ${S().worn ? `<div class="row"><button class="btn soft" id="off">${bi("Quitar")}</button></div>` : ""}`,
+      msg || "¿Qué le compramos al loro?");
+    drawParrot();
+    stage.querySelectorAll(".item").forEach(b => b.onclick = () => {
+      touch(); const id = b.dataset.id;
+      if (own.includes(id)) { Rewards.wear(S().worn === id ? "" : id); Sound.sfx.tap(); showShop(); return; }
+      const r = Rewards.buy(id);
+      if (r === "ok") { Sound.sfx.good(); cheer(); showShop("¡Lo compraste!"); }
+      else { Sound.sfx.soft(); say("No te alcanzan las monedas."); }
+    });
+    const off = $("#off"); if (off) off.onclick = () => { Rewards.wear(""); Sound.sfx.tap(); showShop(); };
+  }
+  function showCalendar() {
+    screen("📅 Mi calendario", `<div class="cal">${Rewards.calendar().map(d =>
+      `<div class="day ${d.done ? "done" : ""} ${d.today ? "today" : ""}">${d.done ? "⭐" : d.num}</div>`).join("")}</div>`,
+      "Cada día que practicas ganas un sello.");
+  }
+  function prizeScreen(emoji, titleEs, coins) {
+    Sound.sfx.win(); confetti(); cheer();
+    render(`<div class="big-emoji prize">${emoji}</div><p class="instr">${bi(titleEs)}</p><p class="instr">+${coins} 🪙</p>
+      <div class="row"><button class="btn go" id="okPrize">${bi("Seguir")}</button></div>`);
+    say(titleEs);
+    $("#okPrize").onclick = () => home();
+  }
+  function openChestScreen() {
+    render(`<div class="big-emoji chest">🎁</div><div class="row"><button class="btn hero" id="open">${bi("Abrir cofre")}</button></div>`);
+    say("¡Tienes un cofre sorpresa!");
+    $("#open").onclick = () => {
+      const r = Rewards.openChest(); if (!r) return home();
+      prizeScreen(r.sticker || "🪙", r.sticker ? "¡Nuevo sticker!" : "Ya tenías todos los stickers. ¡Monedas extra!", r.coins);
+    };
+  }
+  function claimPrize() {
+    const r = Rewards.claimWeekly(); if (!r) return;
+    prizeScreen(r.sticker || "🏆", "¡Premio reclamado!", r.coins);
   }
 
   /* ---------- Inicio y nombre del loro ---------- */
@@ -755,22 +850,30 @@
     if (window.__activateUpdate) window.__activateUpdate();
     if (!S().parrot) await askName();
     const can = Store.canStart();
+    const wk = Rewards.weekDays(), goal = Rewards.WEEK_GOAL, ready = Rewards.weeklyReady();
     const stamps = PASSPORT.map(k => {
       const ok = WORDS.filter(w => w.cat === k).every(w => Store.get(w.id));
-      return `<div class="stamp ${ok ? "done" : ""}" title="${CATEGORIES[k].label}">${CATEGORIES[k].icon}</div>`;
+      return `<div class="stamp ${ok ? "done" : ""}" title="${CATEGORIES[k].label}">${CATEGORIES[k].icon}${ok && Rewards.shield(k) ? '<i class="shield">🛡️</i>' : ""}</div>`;
     }).join("");
-    render(`<div class="home-meta"><span class="chip">⭐ ${S().stars}</span><span class="chip">🔥 ${Store.streak()}</span></div>
+    const nav = [["garden", "🌱", "Jardín"], ["album", "🏷️", "Álbum"], ["shop", "🎩", "Tienda"], ["cal", "📅", "Calendario"]]
+      .map(n => `<button class="nbtn" data-k="${n[0]}"><span>${n[1]}</span>${bi(n[2])}</button>`).join("");
+    render(`<div class="home-meta"><span class="chip">⭐ ${S().stars}</span><span class="chip">🪙 ${Rewards.coins()}</span><span class="chip">🔥 ${Store.streak()}</span></div>
       <div class="stamps">${stamps}</div>
-      <div class="big-emoji">${can ? "🌟" : "🌙"}</div>
+      <div class="weekly"><span>🏆 ${bi("Reto semanal")}</span><div class="wbar"><i style="width:${Math.min(100, wk / goal * 100)}%"></i></div><b>${Math.min(wk, goal)}/${goal}</b>
+        ${ready ? `<button class="btn go" id="claim">${bi("Reclamar premio")}</button>` : ""}</div>
       ${can ? `<button class="btn hero" id="start">${bi("¡Empezar!")}</button>` : `<p class="instr">${bi("¡Ya practicaste hoy! Mañana más.")}</p>
         <button class="btn soft" id="more">${bi("Seguir practicando ➜")}</button>`}
+      <div class="nav">${nav}</div>
       <button id="gear" aria-label="Padres">⚙️</button>`);
     rn.hidden = false;
     rn.onclick = async () => { rn.hidden = true; const old = S().parrot; await askName(true); Store.save(); home(); if (S().parrot !== old) cheer(); };
     { const g = can ? greeting() : { es: `¡Qué gran trabajo hoy! ${parrotName()} te espera mañana.`, en: `Great work today! ${parrotName()} is waiting for you tomorrow.` }; say(g.es, { en: g.en }); }
     if (can) $("#start").onclick = () => { Sound.sfx.good(); runSession(); };
     else $("#more").onclick = () => { Sound.sfx.good(); runExtra(); };
-    setupGear();
+    setupGear(); drawParrot();
+    const screens = { garden: showGarden, album: showAlbum, shop: showShop, cal: showCalendar };
+    stage.querySelectorAll(".nbtn").forEach(b => b.onclick = () => { Sound.sfx.tap(); rn.hidden = true; screens[b.dataset.k](); });
+    const cl = $("#claim"); if (cl) cl.onclick = () => { rn.hidden = true; claimPrize(); };
   }
 
   /* ---------- Panel de padres (Etapa 4 lo amplía) ---------- */
