@@ -13,6 +13,11 @@
   const ses = { active: false, paused: false, breaking: false, elapsed: 0, blockElapsed: 0, blockIdx: 0,
     total: 1200, blockSecs: 300, idle: 0, idleSaid: false, stars: 0, newWords: 0, timeUp: false, hints: 3, change: false, pref: null };
   const MAX_HINTS = 3; // ayudas «No me acuerdo» por sesión
+  const hintsEn = () => ses.hints === 0 ? " You have no hints left." : ses.hints === 1 ? " You have 1 hint left." : ` You have ${ses.hints} hints left.`;
+  function sayHelp(r, w) {
+    const es = pickOne(HELP_MSG);
+    say(es + (r === "idk" ? hintsText() : ""), { then: [{ t: w.en, lang: "en" }], en: EN[es] + (r === "idk" ? hintsEn() : "") });
+  }
   const hintsText = () => ses.hints === 0 ? " Ya no te quedan ayudas." : ses.hints === 1 ? " Te queda 1 ayuda." : ` Te quedan ${ses.hints} ayudas.`;
   const BLOCKS = [
     { icon: "🧠", name: "Calentamiento" }, { icon: "🌟", name: "Palabras nuevas" },
@@ -27,10 +32,106 @@
       const t = setInterval(() => { if (!ses.paused) left -= 100; if (left <= 0) { clearInterval(t); res(); } }, 100);
     });
   }
+  /* ---------- Inglés principal + español como subtítulo ---------- */
+  const EN = {
+ "¿Cómo se dice? Dilo y escríbelo.": "How do you say it? Say it and write it.",
+ "¡Mira bien las letras!": "Look at the letters!",
+ "¡Lo recordaste sin ayuda! Tu memoria se hace fuerte.": "You remembered it without help! Your memory is getting strong.",
+ "¡Sin pistas y lo lograste! Repasar funciona.": "No hints and you did it! Reviewing works.",
+ "¡Wow! Te acordaste tú solita.": "Wow! You remembered it all by yourself.",
+ "¡Casi! Mira cómo se escribe.": "Almost! Look at how it is written.",
+ "Está bien, así se aprende. Mírala bien.": "That is okay, that is how we learn. Look at it closely.",
+ "Ahora escríbela tú.": "Now write it yourself.",
+ "¡Muy bien! Lo volviste a intentar. Mañana la repasamos.": "Very good! You tried again. We will review it tomorrow.",
+ "Hoy no hay repaso. ¡Vamos con algo nuevo!": "No review today. Let us do something new!",
+ "Mira y escucha.": "Look and listen.",
+ "Dilo en voz alta, tres veces.": "Say it out loud, three times.",
+ "Ahora escríbela copiando.": "Now copy it and write it.",
+ "¡Palabra nueva en tu jardín!": "A new word in your garden!",
+ "Escucha y repite en voz alta.": "Listen and repeat out loud.",
+ "¡Qué bien suena! Tres veces.": "That sounds great! Three times.",
+ "¡Otra vez, más fuerte!": "Again, louder!",
+ "¡Una más!": "One more!",
+ "¡Bien escrita!": "Well written!",
+ "¡Muy bien!": "Very good!",
+ "Mira bien las letras.": "Look at the letters.",
+ "¡Ahora escríbela tú!": "Now you write it!",
+ "Pasa el dedo sobre las letras.": "Trace the letters with your finger.",
+ "¡Qué bonito trazo!": "Nice tracing!",
+ "¿Qué letras faltan?": "Which letters are missing?",
+ "Toca las palabras en orden.": "Tap the words in order.",
+ "¡Escribiste una oración!": "You wrote a sentence!",
+ "Mira bien. ¡Se van a esconder!": "Look closely. They will hide!",
+ "¿Dónde están las parejas?": "Where are the pairs?",
+ "¡Todas las parejas!": "All the pairs!",
+ "Casi. ¡Prueba otra vez!": "Almost. Try again!",
+ "Escucha y escribe.": "Listen and write.",
+ "¡Hoy toca repasar lo que sabes!": "Today we review what you know!",
+ "Lee y toca.": "Read and tap.",
+ "Escucha y toca.": "Listen and tap.",
+ "¡Eso! Lo intentaste otra vez.": "Yes! You tried again.",
+ "¡Rápido y correcto!": "Fast and correct!",
+ "Casi. Inténtalo otra vez.": "Almost. Try again.",
+ "Escucha y arma la palabra.": "Listen and build the word.",
+ "¡Mini prueba! Las palabras nuevas de hoy.": "Mini quiz! Today's new words.",
+ "¡La recuerdas! Mañana la vemos otra vez.": "You remember it! We will see it again tomorrow.",
+ "¡Muy bien! Mañana la repasamos.": "Very good! We will review it tomorrow.",
+ "¡Salta diez veces como un loro!": "Jump ten times like a parrot!",
+ "¡Estira los brazos como alas!": "Stretch your arms like wings!",
+ "¡Baila conmigo!": "Dance with me!",
+ "¡Toca tus pies y sacude las manos!": "Touch your toes and shake your hands!",
+ "¿Sigues ahí? ¡Tú puedes, vamos!": "Are you still there? You can do it, let us go!",
+ "¡Bonus! Cinco minutos más. ¡Vamos!": "Bonus! Five more minutes. Let us go!",
+ "¡Hola! Aún no tengo nombre. ¿Me pones uno?": "Hi! I do not have a name yet. Can you give me one?",
+ "¡Mira quién llegó! ¡Vamos a jugar con palabras!": "Look who is here! Let us play with words!",
+ "¡Qué alegría verte! Hoy aprendemos jugando.": "So happy to see you! Today we learn by playing.",
+ "¡Cuac no, soy loro! ¡Hola! ¿Empezamos?": "Quack no, I am a parrot! Hello! Shall we start?",
+ "¿Qué nombre nuevo le ponemos al loro?": "What new name shall we give the parrot?",
+ "¿Cómo quieres llamarme ahora?": "What do you want to call me now?",
+ "Cancelar": "Cancel",
+ "¿Qué quieres practicar?": "What do you want to practice?",
+ "Tú eliges. ¿Qué quieres practicar?": "You choose. What do you want to practice?",
+ "¡Listo! Cambiamos de ejercicio al terminar este.": "Okay! We will change the exercise when this one ends.",
+ "Sorpréndeme": "Surprise me",
+ "Hablar": "Speak",
+ "Completar": "Complete",
+ "Mirar y escribir": "Look and write",
+ "Pares": "Pairs",
+ "Oraciones": "Sentences",
+ "Leer": "Read",
+ "Trazar": "Trace",
+ "Armar": "Build",
+ "Escribir al oído": "Write what you hear",
+ "Escuchar": "Listen",
+ "Otra vez": "Again",
+ "Listo ✔": "Done ✔",
+ "No me acuerdo": "I do not remember",
+ "🧽 Borrar": "🧽 Erase",
+ "Siguiente ➜": "Next ➜",
+ "Seguir ➜": "Go on ➜",
+ "Seguir": "Continue",
+ "Pausa": "Pause",
+ "Une la imagen con su palabra": "Match the picture with its word",
+ "Toca la palabra": "Tap the word",
+ "Toca lo que escuchas": "Tap what you hear",
+ "¡Empezar!": "Let us start!",
+ "¡Ya practicaste hoy! Mañana más.": "You practiced today! More tomorrow.",
+ "Seguir practicando ➜": "Keep practicing ➜",
+ "Terminar": "Finish",
+ "¿Cómo se llama el loro?": "What is the parrot's name?",
+ "Traza con el dedo": "Trace with your finger",
+ "Completa la palabra": "Complete the word",
+ "Arma la oración": "Build the sentence",
+ "Memoria de pares": "Memory pairs",
+ "Escucha y arma": "Listen and build"
+};
+  // HTML bilingüe: inglés grande, español pequeño debajo.
+  const bi = es => EN[es] ? `<span class="en">${EN[es]}</span><small class="es">${es}</small>` : es;
   function say(text, opts) {
     opts = opts || {};
-    bubble.textContent = text;
-    if (opts.speak !== false) Sound.speak([{ t: text, lang: "es" }].concat(opts.then || []));
+    const en = opts.en || EN[text];
+    bubble.innerHTML = en ? `<span class="en">${en}</span><small class="es">${text}</small>` : text;
+    if (opts.speak !== false) Sound.speak([en ? { t: en, lang: "en" } : { t: text, lang: "es" }].concat(opts.then || []));
   }
   function cheer() {
     parrotEl.classList.remove("cheer"); void parrotEl.offsetWidth; parrotEl.classList.add("cheer");
@@ -72,8 +173,8 @@
           <div class="ans" id="ans"><span id="ansTxt"></span></div>
           <div id="kb" class="kb"></div>
           <div class="row">
-            <button class="btn go" id="okBtn">Listo ✔</button>
-            ${o.showWord ? '<button class="btn soft" id="hearBtn">🔊</button>' : `<button class="btn soft" id="idkBtn" ${ses.hints > 0 ? "" : "disabled"}>No me acuerdo · ${ses.hints > 0 ? ses.hints + (ses.hints === 1 ? " ayuda" : " ayudas") : "sin ayudas"}</button>`}
+            <button class="btn go" id="okBtn">${bi("Listo ✔")}</button>
+            ${o.showWord ? '<button class="btn soft" id="hearBtn">🔊</button>' : `<button class="btn soft" id="idkBtn" ${ses.hints > 0 ? "" : "disabled"}>${bi("No me acuerdo")} · 💡 ${ses.hints}</button>`}
           </div>
         </div></div>`);
       let txt = ""; const out = $("#ansTxt"), ans = $("#ans");
@@ -114,7 +215,7 @@
       say(pickOne(PRAISE_COLD), { speak: false }); Sound.word(w); await sleep(1700);
     } else {
       Store.recordCold(w.id, false); Sound.sfx.soft();
-      say(pickOne(HELP_MSG) + (r === "idk" ? hintsText() : ""), { then: [{ t: w.en, lang: "en" }] });
+      sayHelp(r, w);
       await sleep(r === "idk" ? 3600 : 2200);
       say("Ahora escríbela tú.", { speak: false });
       await askWord(w, { showWord: true, autoSpeak: true });
@@ -136,17 +237,17 @@
     });
   }
   async function newWordTask(w) {
-    render(`<div class="card">${tag(CATEGORIES[w.cat].icon + " " + CATEGORIES[w.cat].label + " · Palabra nueva")}<div class="big-emoji" style="font-size:clamp(80px,20vmin,150px)">${w.emoji}</div><div class="word-big">${w.en}</div>
+    render(`<div class="card">${tag(CATEGORIES[w.cat].icon + " " + CATEGORIES[w.cat].label + " · New word")}<div class="big-emoji" style="font-size:clamp(80px,20vmin,150px)">${w.emoji}</div><div class="word-big">${w.en}</div>
       <div class="es-small">${w.es}</div><div class="hook">🦜 ${w.hook}</div>
-      <div class="row"><button class="btn soft" id="hear">🔊 Escuchar</button></div></div>`);
+      <div class="row"><button class="btn soft" id="hear">🔊 ${bi("Escuchar")}</button></div></div>`);
     say("Mira y escucha.", { then: [{ t: w.en, lang: "en" }] });
     $("#hear").onclick = () => Sound.word(w);
-    await nextBtn("Siguiente ➜");
+    await nextBtn("Next ➜");
     render(`<div class="card"><div class="big-emoji">${w.emoji}</div><div class="word-big">${w.en}</div>
       <div class="row"><button class="btn soft" id="hear">🔊</button></div></div>`);
     say("Dilo en voz alta, tres veces.");
     $("#hear").onclick = () => Sound.word(w);
-    await nextBtn("¡Lo dije! 🗣️");
+    await nextBtn("I said it! 🗣️");
     star(); Sound.sfx.good();
     await traceTask(w);
     say("Ahora escríbela copiando.", { speak: true });
@@ -166,12 +267,12 @@
   // Hablar: escucha y repite 3 veces en voz alta.
   async function sayTask(w) {
     render(`<div class="card"><div class="big-emoji">${w.emoji}</div><div class="word-big">${w.en}</div>
-      <div class="row"><button class="btn soft" id="hear">🔊 Escuchar</button><button class="btn go" id="said">¡Lo dije! 🗣️ 0/3</button></div></div>`);
+      <div class="row"><button class="btn soft" id="hear">🔊 ${bi("Escuchar")}</button><button class="btn go" id="said">I said it! 🗣️ 0/3</button></div></div>`);
     say("Escucha y repite en voz alta.", { then: [{ t: w.en, lang: "en" }] });
     $("#hear").onclick = () => Sound.word(w);
     let n = 0;
     await new Promise(res => { $("#said").onclick = () => {
-      n++; Sound.sfx.tap(); $("#said").textContent = `¡Lo dije! 🗣️ ${n}/3`;
+      n++; Sound.sfx.tap(); $("#said").textContent = `I said it! 🗣️ ${n}/3`;
       if (n >= 3) { star(); cheer(); Sound.sfx.good(); say("¡Qué bien suena! Tres veces.", { speak: false }); setTimeout(res, 1100); }
       else say(n === 1 ? "¡Otra vez, más fuerte!" : "¡Una más!", { speak: false });
     }; });
@@ -181,7 +282,7 @@
     const r = await askWord(w, o);
     if (r === "ok") { star(); cheer(); Sound.sfx.good(); say("¡Bien escrita!", { speak: false }); Sound.word(w); await sleep(1300); }
     else {
-      Sound.sfx.soft(); say(pickOne(HELP_MSG) + (r === "idk" ? hintsText() : ""), { then: [{ t: w.en, lang: "en" }] }); await sleep(r === "idk" ? 3600 : 2200);
+      Sound.sfx.soft(); sayHelp(r, w); await sleep(r === "idk" ? 3600 : 2200);
       await askWord(w, { showWord: true, autoSpeak: true }); star(); Sound.sfx.good();
       say("¡Muy bien!", { speak: false }); await sleep(1200);
     }
@@ -193,7 +294,7 @@
     say("¡Ahora escríbela tú!", { speak: false });
     await writeTask(w, {});
   }
-  const tag = t => `<div class="tagline">${t}</div>`;
+  const tag = t => { const i = t.indexOf(" "); return `<div class="tagline">${t.slice(0, i)} ${bi(t.slice(i + 1))}</div>`; };
   const hearRow = w => { const b = $("#hear"); if (b) b.onclick = () => Sound.word(w); };
 
   // Trazar con el dedo: palabra punteada sobre un lienzo; se completa al cubrir ~85 % del trazo.
@@ -201,8 +302,8 @@
     return new Promise(res => {
       render(`<div class="card">${tag("✏️ Traza con el dedo")}<div class="big-emoji" style="font-size:clamp(50px,11vmin,90px)">${w.emoji}</div>
         <canvas id="cv" class="trace"></canvas>
-        <div class="row"><button class="btn soft" id="hear">🔊</button><button class="btn soft" id="clr">🧽 Borrar</button>
-        <button class="btn soft" id="skipT" hidden>Siguiente ➜</button></div></div>`);
+        <div class="row"><button class="btn soft" id="hear">🔊</button><button class="btn soft" id="clr">${bi("🧽 Borrar")}</button>
+        <button class="btn soft" id="skipT" hidden>${bi("Siguiente ➜")}</button></div></div>`);
       say("Pasa el dedo sobre las letras.", { speak: true }); Sound.word(w);
       const cv = $("#cv"), W = Math.max(260, Math.min(620, stage.clientWidth - 70)), H = 170;
       cv.width = W; cv.height = H; cv.style.width = W + "px"; cv.style.height = H + "px";
@@ -254,7 +355,7 @@
       touch();
       if (b.textContent === need[pos]) {
         $("#slots").children[idxs[pos]].textContent = need[pos]; b.classList.add("used"); pos++; Sound.sfx.tap();
-        if (pos === need.length) { Sound.sfx.good(); star(); cheer(); say("¡Completaste " + w.en + "!", { speak: false }); Sound.word(w); setTimeout(res, 1300); }
+        if (pos === need.length) { Sound.sfx.good(); star(); cheer(); say("¡Completaste " + w.en + "!", { speak: false, en: "You completed " + w.en + "!" }); Sound.word(w); setTimeout(res, 1300); }
       } else { b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); Sound.sfx.soft(); }
     }));
   }
@@ -280,7 +381,7 @@
   async function pairsTask(w, pool) {
     const set = shuffle([w, ...shuffle(pool.filter(x => x !== w)).slice(0, 2)]);
     const cards = shuffle(set.flatMap(x => [{ id: x.id, f: x.emoji, c: "" }, { id: x.id, f: x.en, c: " w" }]));
-    render(`<div class="card">${tag("🃏 Memoria de pares")}<p class="instr">Une la imagen con su palabra</p>
+    render(`<div class="card">${tag("🃏 Memoria de pares")}<p class="instr">${bi("Une la imagen con su palabra")}</p>
       <div class="pairs">${cards.map((c, i) => `<button class="pcard up" data-i="${i}"><span class="front">❓</span><span class="face${c.c}">${c.f}</span></button>`).join("")}</div></div>`);
     say("Mira bien. ¡Se van a esconder!", { speak: true }); await sleep(2600);
     const els = [...stage.querySelectorAll(".pcard")]; els.forEach(e => e.classList.remove("up"));
@@ -324,9 +425,9 @@
   // Ella elige el tipo de ejercicio (o «Sorpréndeme» para ir variando).
   function chooseKind() {
     return new Promise(res => {
-      render(`<div class="card"><p class="instr">¿Qué quieres practicar?</p>
-        <div class="menu">${KIND_MENU.map(k => `<button class="mbtn" data-k="${k[0]}"><span>${k[1]}</span>${k[2]}</button>`).join("")}
-        <button class="mbtn rnd" data-k=""><span>🎲</span>Sorpréndeme</button></div></div>`);
+      render(`<div class="card"><p class="instr">${bi("¿Qué quieres practicar?")}</p>
+        <div class="menu">${KIND_MENU.map(k => `<button class="mbtn" data-k="${k[0]}"><span>${k[1]}</span>${bi(k[2])}</button>`).join("")}
+        <button class="mbtn rnd" data-k=""><span>🎲</span>${bi("Sorpréndeme")}</button></div></div>`);
       say("Tú eliges. ¿Qué quieres practicar?");
       stage.querySelector(".menu").onclick = e => {
         const b = e.target.closest(".mbtn"); if (!b) return;
@@ -361,8 +462,8 @@
     const opts = shuffle([target, ...shuffle(pool.filter(w => w !== target)).slice(0, 2)]);
     const read = mode === "read";
     render(`<div class="card">${tag(read ? "👀 Look and read" : "🎧 Listen and tick")}${read ? `<div class="big-emoji" style="font-size:clamp(70px,16vmin,130px)">${target.emoji}</div>` : ""}
-      <p class="instr">${read ? "Toca la palabra" : "Toca lo que escuchas"}</p>
-      <div class="row"><button class="btn soft" id="hear">🔊 ${read ? "Escuchar" : "Otra vez"}</button></div>
+      <p class="instr">${bi(read ? "Toca la palabra" : "Toca lo que escuchas")}</p>
+      <div class="row"><button class="btn soft" id="hear">🔊 ${bi(read ? "Escuchar" : "Otra vez")}</button></div>
       <div class="choices">${opts.map((w, i) => `<button class="choice${read ? " txt" : ""}" data-i="${i}">${read ? w.en : w.emoji}</button>`).join("")}</div></div>`);
     say(read ? "Lee y toca." : "Escucha y toca.", { speak: false });
     if (!read) Sound.word(target);
@@ -403,7 +504,7 @@
         touch(); const t = tiles[+b.dataset.k];
         if (t.c === letters[pos]) {
           $("#slots").children[pos].textContent = t.c; b.classList.add("used"); pos++; Sound.sfx.tap();
-          if (pos === letters.length) { Sound.sfx.good(); star(); cheer(); say("¡Armaste " + w.en + "!", { speak: false }); setTimeout(res, 1200); }
+          if (pos === letters.length) { Sound.sfx.good(); star(); cheer(); say("¡Armaste " + w.en + "!", { speak: false, en: "You built " + w.en + "!" }); setTimeout(res, 1200); }
         } else { b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); Sound.sfx.soft(); }
       });
     });
@@ -422,7 +523,7 @@
         const r = await askWord(w);
         if (r === "ok") { star(); cheer(); Sound.sfx.good(); say("¡La recuerdas! Mañana la vemos otra vez.", { speak: false }); Sound.word(w); await sleep(1600); }
         else {
-          Sound.sfx.soft(); say(pickOne(HELP_MSG) + (r === "idk" ? hintsText() : ""), { then: [{ t: w.en, lang: "en" }] }); await sleep(r === "idk" ? 3600 : 2200);
+          Sound.sfx.soft(); sayHelp(r, w); await sleep(r === "idk" ? 3600 : 2200);
           await askWord(w, { showWord: true, autoSpeak: true }); star(); Sound.sfx.good();
           say("¡Muy bien! Mañana la repasamos.", { speak: false }); await sleep(1500);
         }
@@ -435,8 +536,8 @@
   async function activeBreak() {
     ses.breaking = true; let left = 10, skip = false;
     render(`<div class="break">🦜</div><div class="count" id="cnt">10</div>
-      <div class="row"><button class="btn soft" id="skip" hidden>Seguir ➜</button></div>`);
-    say("Pausa activa. " + pickOne(BREAKS));
+      <div class="row"><button class="btn soft" id="skip" hidden>${bi("Seguir ➜")}</button></div>`);
+    { const b = pickOne(BREAKS); say("Pausa activa. " + b, { en: "Active break! " + EN[b] }); }
     $("#skip").onclick = () => { skip = true; };
     while (left > 0 && !skip) {
       await sleep(1000); left--; const c = $("#cnt"); if (c) c.textContent = left;
@@ -466,7 +567,7 @@
     if (p) {
       Sound.stop();
       overlay.hidden = false;
-      overlay.innerHTML = `<div style="font-size:90px">😴</div><h2>Pausa</h2><button class="btn hero" id="resume">Seguir</button>`;
+      overlay.innerHTML = `<div style="font-size:90px">😴</div><h2>${bi("Pausa")}</h2><button class="btn hero" id="resume">${bi("Seguir")}</button>`;
       $("#resume").onclick = () => setPaused(false);
     } else { overlay.hidden = true; overlay.innerHTML = ""; touch(); }
   }
@@ -499,10 +600,10 @@
     ses.active = false; Store.markDone(); Store.save();
     $("#topbar").hidden = true;
     Sound.sfx.win(); confetti(); cheer();
-    say(`¡Lo lograste! Hoy ganaste ${ses.stars} estrellas. ¡Nos vemos mañana!`);
-    render(`<div class="big-emoji">🏆</div><div class="home-meta"><span class="chip">⭐ ${ses.stars} hoy</span>
-      <span class="chip">🌱 ${ses.newWords} palabras nuevas</span><span class="chip">🔥 ${Store.streak()} días</span></div>
-      <div class="row"><button class="btn soft" id="more">Seguir practicando ➜</button><button class="btn go" id="bye">Terminar</button></div>`);
+    say(`¡Lo lograste! Hoy ganaste ${ses.stars} estrellas. ¡Nos vemos mañana!`, { en: `You did it! You earned ${ses.stars} stars today. See you tomorrow!` });
+    render(`<div class="big-emoji">🏆</div><div class="home-meta"><span class="chip">⭐ ${ses.stars} today</span>
+      <span class="chip">🌱 ${ses.newWords} new words</span><span class="chip">🔥 ${Store.streak()} days</span></div>
+      <div class="row"><button class="btn soft" id="more">${bi("Seguir practicando ➜")}</button><button class="btn go" id="bye">${bi("Terminar")}</button></div>`);
     $("#bye").onclick = () => { home(); };
     $("#more").onclick = () => { runExtra(); };
   }
@@ -520,16 +621,21 @@
   /* ---------- Inicio y nombre del loro ---------- */
   function greeting() {
     const n = parrotName();
-    const g = [`¡Hola, exploradora! Soy ${n}. ¿Lista para volar?`, `¡Buenos días! ${n} trae una sorpresa.`,
-      `¡Hola, hola! ${n} te extrañó mucho.`, `¡Mira quién llegó! ¡Vamos a jugar con palabras!`,
-      `¡${n} está listo! ¿Y tú?`, `¡Qué alegría verte! Hoy aprendemos jugando.`, `¡Cuac no, soy loro! ¡Hola! ¿Empezamos?`];
+    const g = [
+      { es: `¡Hola, exploradora! Soy ${n}. ¿Lista para volar?`, en: `Hello, explorer! I am ${n}. Ready to fly?` },
+      { es: `¡Buenos días! ${n} trae una sorpresa.`, en: `Good morning! ${n} has a surprise.` },
+      { es: `¡Hola, hola! ${n} te extrañó mucho.`, en: `Hello, hello! ${n} missed you a lot.` },
+      { es: "¡Mira quién llegó! ¡Vamos a jugar con palabras!", en: EN["¡Mira quién llegó! ¡Vamos a jugar con palabras!"] },
+      { es: `¡${n} está listo! ¿Y tú?`, en: `${n} is ready! And you?` },
+      { es: "¡Qué alegría verte! Hoy aprendemos jugando.", en: EN["¡Qué alegría verte! Hoy aprendemos jugando."] },
+      { es: "¡Cuac no, soy loro! ¡Hola! ¿Empezamos?", en: EN["¡Cuac no, soy loro! ¡Hola! ¿Empezamos?"] }];
     return g[Store.dayNum() % g.length];
   }
   function askName(canCancel) {
     return new Promise(res => {
-      render(`<div class="card"><p class="instr">${canCancel ? "¿Qué nombre nuevo le ponemos al loro?" : "¿Cómo se llama el loro?"}</p>
+      render(`<div class="card"><p class="instr">${bi(canCancel ? "¿Qué nombre nuevo le ponemos al loro?" : "¿Cómo se llama el loro?")}</p>
         <div class="ans" id="ans"><span id="ansTxt"></span></div><div id="kb" class="kb"></div>
-        <div class="row">${canCancel ? '<button class="btn soft" id="noName">Cancelar</button>' : ""}<button class="btn go" id="okName">Listo ✔</button></div></div>`);
+        <div class="row">${canCancel ? `<button class="btn soft" id="noName">${bi("Cancelar")}</button>` : ""}<button class="btn go" id="okName">${bi("Listo ✔")}</button></div></div>`);
       say(canCancel ? "¿Cómo quieres llamarme ahora?" : "¡Hola! Aún no tengo nombre. ¿Me pones uno?");
       let t = ""; const out = $("#ansTxt");
       keyboard($("#kb"), k => { if (k === "back") t = t.slice(0, -1); else if (t.length < 12) t += k; out.textContent = t; });
@@ -553,12 +659,12 @@
     render(`<div class="home-meta"><span class="chip">⭐ ${S().stars}</span><span class="chip">🔥 ${Store.streak()}</span></div>
       <div class="stamps">${stamps}</div>
       <div class="big-emoji">${can ? "🌟" : "🌙"}</div>
-      ${can ? `<button class="btn hero" id="start">¡Empezar!</button>` : `<p class="instr">¡Ya practicaste hoy! Mañana más.</p>
-        <button class="btn soft" id="more">Seguir practicando ➜</button>`}
+      ${can ? `<button class="btn hero" id="start">${bi("¡Empezar!")}</button>` : `<p class="instr">${bi("¡Ya practicaste hoy! Mañana más.")}</p>
+        <button class="btn soft" id="more">${bi("Seguir practicando ➜")}</button>`}
       <button id="gear" aria-label="Padres">⚙️</button>`);
     rn.hidden = false;
     rn.onclick = async () => { rn.hidden = true; const old = S().parrot; await askName(true); Store.save(); home(); if (S().parrot !== old) cheer(); };
-    say(can ? greeting() : `¡Qué gran trabajo hoy! ${parrotName()} te espera mañana.`);
+    { const g = can ? greeting() : { es: `¡Qué gran trabajo hoy! ${parrotName()} te espera mañana.`, en: `Great work today! ${parrotName()} is waiting for you tomorrow.` }; say(g.es, { en: g.en }); }
     if (can) $("#start").onclick = () => { Sound.sfx.good(); runSession(); };
     else $("#more").onclick = () => { Sound.sfx.good(); runExtra(); };
     setupGear();

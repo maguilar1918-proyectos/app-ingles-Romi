@@ -158,3 +158,10 @@ canvas.trace{background:#fffef8;border:3px dashed var(--line);border-radius:20px
 .mbtn span{font-size:clamp(30px,6vmin,44px);line-height:1}
 .mbtn:active{transform:translateY(4px);box-shadow:none}
 .mbtn.rnd{background:var(--sun)}
+/* Inglés principal + español como subtítulo */
+.en{display:block;font-weight:900;line-height:1.15}
+.es{display:block;font-size:.6em;font-weight:600;color:#5a6478;line-height:1.2;margin-top:2px}
+.btn .es{color:inherit;opacity:.75}
+#bubble .en{font-size:clamp(20px,3.6vmin,30px)}
+#bubble{flex-direction:column;align-items:flex-start;justify-content:center}
+#bubble .es{font-size:clamp(13px,2.2vmin,17px)}
